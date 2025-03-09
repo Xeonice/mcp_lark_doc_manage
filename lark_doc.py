@@ -72,7 +72,7 @@ async def get_lark_doc_content(documentUrl: str) -> str:
     if isWiki:
         # 构造请求对象
         wikiRequest: GetNodeSpaceRequest = GetNodeSpaceRequest.builder() \
-            .token("Lj29w7I7QivQCNk5QsrcRxEFnvb") \
+            .token(docID) \
             .obj_type("wiki") \
             .build()
         wikiResponse: GetNodeSpaceResponse = larkClient.wiki.v2.space.get_node(wikiRequest, option)    
