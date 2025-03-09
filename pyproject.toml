@@ -1,6 +1,6 @@
 [project]
 name = "mcp-server-my-lark-doc"
-version = "0.1.0"
+version = "0.1.1"
 description = "A Model Context Protocol server for accessing Lark documents"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.scripts]
-mcp-server-my-lark = "lark_doc:main"
+mcp-server-my-lark-doc = "mcp_server_my_lark_doc:main"  # 修改这一行
 
 [build-system]
 requires = ["hatchling"]
