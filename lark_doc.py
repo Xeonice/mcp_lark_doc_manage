@@ -8,10 +8,14 @@ from lark_oapi.api.auth.v3 import *
 from lark_oapi.api.wiki.v2 import *
 import json
 import os
+import asyncio  # 添加到文件开头的导入部分
 
 # 从环境变量获取配置
+# 在文件开头的导入部分下面添加全局变量
 LARK_APP_ID = os.getenv("LARK_APP_ID", "")
 LARK_APP_SECRET = os.getenv("LARK_APP_SECRET", "")
+USER_ACCESS_TOKEN = None  # 新增全局变量
+token_lock = asyncio.Lock()  # 新增token锁
 
 try:
     larkClient = lark.Client.builder() \
@@ -26,16 +30,27 @@ except Exception as e:
 mcp = FastMCP("lark_doc")
 
 @mcp.tool()
+async def set_user_access_token(token: str) -> str:
+    """设置飞书用户访问令牌
+    
+    Args:
+        token: 飞书用户访问令牌
+    """
+    global USER_ACCESS_TOKEN
+    async with token_lock:  # 使用锁保护token的写入
+        USER_ACCESS_TOKEN = token
+        return f"成功设置用户访问令牌: {token[:8]}..."
+
+@mcp.tool()
 async def get_lark_doc_content(documentUrl: str) -> str:
     """获取飞书文档内容
     
     Args:
         documentUrl: 飞书文档URL
     """
-
     if not larkClient or not larkClient.auth or not larkClient.docx or not larkClient.wiki:
         return "飞书客户端未正确初始化"
-    
+        
     # 1. 先拿到鉴权token
     authRequest: InternalAppAccessTokenRequest = InternalAppAccessTokenRequest.builder() \
         .request_body(InternalAppAccessTokenRequestBody.builder()
@@ -66,8 +81,15 @@ async def get_lark_doc_content(documentUrl: str) -> str:
 
     docID = docMatch.group(1)
     isWiki = '/wiki/' in documentUrl
-    option = lark.RequestOption.builder().tenant_access_token(tenantAccessToken).build()
-
+    # 如果有用户令牌，优先使用用户令牌
+    async with token_lock:  # 使用锁保护token的读取
+        current_token = USER_ACCESS_TOKEN
+        
+    if current_token:
+        option = lark.RequestOption.builder().user_access_token(current_token).build()
+    else:
+        option = lark.RequestOption.builder().tenant_access_token(tenantAccessToken).build()
+    
     # 3. 如果是wiki文档,需要额外请求一个接口获取实际的docID
     if isWiki:
         # 构造请求对象
