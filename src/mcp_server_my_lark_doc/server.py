@@ -181,7 +181,3 @@ async def search_wiki(query: str, page_size: int = 10) -> str:
         return json.dumps(results, ensure_ascii=False, indent=2)
     except Exception as e:
         return f"Failed to parse search results: {str(e)}"
-
-
-async def serve():
-    mcp.run(transport="stdio")

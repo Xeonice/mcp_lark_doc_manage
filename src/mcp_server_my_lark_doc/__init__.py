@@ -1,7 +1,5 @@
-from .server import serve
-
+from .server import mcp
 
 def main():
     """MCP Lark Doc Server - Lark document access functionality for MCP"""
-    import asyncio
-    asyncio.run(serve())
+    mcp.run(transport="stdio")
