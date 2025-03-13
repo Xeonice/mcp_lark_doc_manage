@@ -10,9 +10,9 @@ A Model Context Protocol server for searching and accessing Lark(Feishu) documen
 - Returns raw content in text format for LLM processing
 
 ### Authentication
-- Supports both tenant access token and user access token
-- Provides API to set user access token dynamically
-- Automatically handles token refresh and management
+- OAuth-based user authentication
+- Automatic token refresh and expiration management
+- Customizable OAuth callback server
 
 ### Error Handling
 - Comprehensive error reporting for authentication issues
@@ -50,6 +50,8 @@ Before using this MCP server, you need to set up your Lark application credentia
 ```bash
 export LARK_APP_ID="your_app_id"
 export LARK_APP_SECRET="your_app_secret"
+export OAUTH_HOST="localhost"               # OAuth callback server host (default: localhost)
+export OAUTH_PORT="9997"                   # OAuth callback server port (default: 9997)
  ```
 
 ## Usage
@@ -63,21 +65,17 @@ Configure in Claude desktop:
         "args": ["mcp-server-my-lark-doc"],
         "env": {
             "LARK_APP_ID": "your app id",
-            "LARK_APP_SECRET": "your app secret"
+            "LARK_APP_SECRET": "your app secret",
+            "OAUTH_HOST": "localhost",   // optional   
+            "OAUTH_PORT": "9997"        // optional  
         }
     }
 }
+```
 
- ```
 ### Available Tools
-1. set_user_access_token
-   
-   - Purpose: Set user access token for accessing private documents
-   - Args: token (string) - The user access token, according to lark setting, the user_access_token will expire in two hours.
-   - Returns: Confirmation message
 
-2. get_lark_doc_content
-   
+1. get_lark_doc_content
    - Purpose: Retrieve document content from Lark
    - Args: documentUrl (string) - The URL of the Lark document
    - Returns: Document content in text format
@@ -85,8 +83,7 @@ Configure in Claude desktop:
      - Doc URLs: https://xxx.feishu.cn/docx/xxxxx
      - Wiki URLs: https://xxx.feishu.cn/wiki/xxxxx
 
-3. search_wiki
-   
+2. search_wiki
    - Purpose: Search documents in Lark Wiki
    - Args: 
      - query (string) - Search keywords
@@ -107,6 +104,20 @@ Common error messages and their solutions:
 - "Failed to get app access token": Check your application credentials and network connection
 - "Failed to get wiki document real ID": Check if the wiki document exists and you have proper permissions
 - "Document content is empty": The document might be empty or you might not have access to its content
+- "Authorization timeout": ser didn't complete authorization within 5 minutes
+
+## Development Notes
+
+### OAuth Callback Server
+
+Default configuration:
+
+- Host: localhost
+- Port: 9997
+Customize via environment variables:
+
+- OAUTH_HOST: Set callback server host
+- OAUTH_PORT: Set callback server port
 
 ## License
 

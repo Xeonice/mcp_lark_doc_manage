@@ -20,10 +20,12 @@ from urllib.parse import quote
 # Add global variables below imports
 LARK_APP_ID = os.getenv("LARK_APP_ID", "")
 LARK_APP_SECRET = os.getenv("LARK_APP_SECRET", "")
+OAUTH_HOST = os.getenv("OAUTH_HOST", "localhost")  # 添加 OAuth 主机配置
+OAUTH_PORT = int(os.getenv("OAUTH_PORT", "9997"))  # 添加 OAuth 端口配置
+REDIRECT_URI = f"http://{OAUTH_HOST}:{OAUTH_PORT}/oauth/callback"
 USER_ACCESS_TOKEN = None  # Add global variable
 TOKEN_EXPIRES_AT = None  # 添加过期时间存储
 FEISHU_AUTHORIZE_URL = "https://accounts.feishu.cn/open-apis/authen/v1/authorize"
-REDIRECT_URI = "http://localhost:9997/oauth/callback"
 token_lock = asyncio.Lock()  # Add token lock
 
 try:
