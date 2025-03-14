@@ -253,7 +253,7 @@ async def _start_oauth_server() -> str:
             "redirect_uri": REDIRECT_URI,
             "response_type": "code",
             "state": state,
-            "scope":"wiki:wiki:readonly%20search:docs:read"
+            "scope": "wiki:wiki:readonly search:docs:read"  # 移除 %20，使用普通空格
         }
         
         query = "&".join([f"{k}={quote(str(v))}" for k, v in params.items()])
