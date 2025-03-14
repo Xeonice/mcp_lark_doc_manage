@@ -252,7 +252,8 @@ async def _start_oauth_server() -> str:
             "client_id": LARK_APP_ID,
             "redirect_uri": REDIRECT_URI,
             "response_type": "code",
-            "state": state
+            "state": state,
+            "scope":"wiki:wiki:readonly%20search:docs:read"
         }
         
         query = "&".join([f"{k}={quote(str(v))}" for k, v in params.items()])
