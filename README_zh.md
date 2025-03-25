@@ -106,17 +106,23 @@ export OAUTH_PORT="9997"                   # OAuth 回调服务器端口（默�
 ```json
 "mcpServers": {
     "lark_doc": {
-        "command": "mcp-lark-doc-manage",
+        "command": "/path/to/your/uvx",
+        "args": [
+            "mcp-lark-doc-manage"
+        ],
         "env": {
             "LARK_APP_ID": "你的应用 ID",
             "LARK_APP_SECRET": "你的应用密钥",
+            "OAUTH_HOST": "localhost",
+            "OAUTH_PORT": "9997",
             "FOLDER_TOKEN": "你的文件夹 token",
-            "OAUTH_HOST": "localhost",   // 可选
-            "OAUTH_PORT": "9997"         // 可选
+            "DEBUG": "1"  // 可选，启用调试模式
         }
     }
 }
 ```
+
+注意：将 `/path/to/your/uvx` 替换为你实际的 uvx 路径（例如：`/Users/username/anaconda3/bin/uvx`）。
 
 ### 可用工具
 
