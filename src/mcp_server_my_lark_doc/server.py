@@ -26,6 +26,7 @@ REDIRECT_URI = f"http://{OAUTH_HOST}:{OAUTH_PORT}/oauth/callback"
 USER_ACCESS_TOKEN = None  # Add global variable
 TOKEN_EXPIRES_AT = None  # 添加过期时间存储
 FEISHU_AUTHORIZE_URL = "https://accounts.feishu.cn/open-apis/authen/v1/authorize"
+FOLDER_TOKEN = os.getenv("FOLDER_TOKEN", "")  # 添加全局文件夹 token
 token_lock = asyncio.Lock()  # Add token lock
 
 try:
@@ -163,6 +164,8 @@ async def search_wiki(query: str, page_size: int = 10) -> str:
         return json.dumps(results, ensure_ascii=False, indent=2)
     except Exception as e:
         return f"Failed to parse search results: {str(e)}"
+    
+
 
 # 添加一个检查 token 是否过期的函数
 async def _check_token_expired() -> bool:
@@ -253,7 +256,7 @@ async def _start_oauth_server() -> str:
             "redirect_uri": REDIRECT_URI,
             "response_type": "code",
             "state": state,
-            "scope": "wiki:wiki:readonly search:docs:read"  # 移除 %20，使用普通空格
+            "scope": "wiki:wiki:readonly drive:drive space:document:retrieve drive:drive.search:readonly docx:document docx:document:readonly"  # 移除 %20，使用普通空格
         }
         
         query = "&".join([f"{k}={quote(str(v))}" for k, v in params.items()])
@@ -296,3 +299,79 @@ async def _auth_flow() -> str:
         raise Exception("Failed to get user access token")
         
     return token
+
+async def get_folder_token() -> str:
+    """Get the folder token from environment or fetch from API if needed"""
+    global FOLDER_TOKEN
+    
+    if FOLDER_TOKEN:
+        return FOLDER_TOKEN
+        
+    # 如果环境变量中没有设置 FOLDER_TOKEN，可以在这里添加获取逻辑
+    # 比如从 API 获取根目录或特定目录的 token
+    return FOLDER_TOKEN
+@mcp.tool()
+async def list_folder_content(page_size: int = 10) -> str:
+    """List contents of a Lark folder
+    
+    Args:
+        page_size: Number of results to return (default: 10)
+    """
+    if not larkClient or not larkClient.auth:
+        return "Lark client not properly initialized"
+
+    # Check if user token exists
+    async with token_lock:
+        current_token = USER_ACCESS_TOKEN
+
+    # Check token existence and expiration
+    if not current_token or await _check_token_expired():
+        try:
+            current_token = await _auth_flow()
+        except Exception as e:
+            return f"Failed to get user access token: {str(e)}"
+            
+    # Get folder token
+    folder_token = await get_folder_token()
+    if not folder_token:
+        return "Folder token not configured"
+
+    # Construct file list request using SDK
+    request: lark.BaseRequest = lark.BaseRequest.builder() \
+        .http_method(lark.HttpMethod.GET) \
+        .uri("/open-apis/drive/v1/files") \
+        .token_types({lark.AccessTokenType.USER}) \
+        .queries([("folder_token", folder_token), ("page_size", page_size)]) \
+        .build()
+
+    option = lark.RequestOption.builder().user_access_token(current_token).build()
+    
+    # Send list request
+    response: lark.BaseResponse = larkClient.request(request, option)
+
+    if not response.success():
+        return f"Failed to list files: code {response.code}, message: {response.msg}"
+
+    # Parse response content
+    try:
+        result = json.loads(response.raw.content.decode('utf-8'))
+        if not result.get("data") or not result["data"].get("files"):
+            return "No files found in folder"
+        
+        # Format file contents
+        items = []
+        for item in result["data"]["files"]:
+            items.append({
+                "name": item.get("name"),
+                "type": item.get("type"),  # "doc"/"sheet"/"file" etc
+                "token": item.get("token"),
+                "url": item.get("url"),
+                "created_time": item.get("created_time"),
+                "modified_time": item.get("modified_time"),
+                "owner_id": item.get("owner_id"),
+                "parent_token": item.get("parent_token")
+            })
+        
+        return json.dumps(items, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return f"Failed to parse file contents: {str(e)}"
