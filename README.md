@@ -1,6 +1,10 @@
-# MCP Server My Lark Doc
+# MCP Lark Doc Manage
 
 A Model Context Protocol server for searching and accessing Lark(Feishu) documents.
+
+[中文文档](README_zh.md)
+
+> **Important**: Before using this MCP Server, you need to have a Lark Enterprise Application. If you haven't created one yet, please follow the setup instructions below.
 
 ## Features
 
@@ -22,21 +26,61 @@ A Model Context Protocol server for searching and accessing Lark(Feishu) documen
 ## Installation
 
 ```bash
-uvx mcp-server-my-lark-doc
+uvx mcp-lark-doc-manage
 ```
 
 ## Configuration
 
-### Get your Lark App ID and App Secret
+### Create Your Lark Enterprise Application
 
-Visit the Lark Open Platform: https://open.larkoffice.com/app
+1. Visit [Lark Open Platform](https://open.larkoffice.com/)
+2. Click "Developer Console" in the top right corner
+3. Click "Create Custom App"
+4. Fill in the basic information:
+   - App Name
+   - App Description
+   - App Icon
+5. In the "Security Settings" section:
+   - Add your domain to "Request Domain Name Whitelist"
+   - Configure OAuth 2.0 settings
+6. Enable required capabilities and apply for permissions in "Permission Management"
+7. Submit for review and wait for approval
 
-### Make Sure your Lark App has Permissions below
+For detailed instructions, see [Custom App Development Process](https://open.feishu.cn/document/home/introduction-to-custom-app-development/self-built-application-development-process).
+
+### Get App ID and App Secret
+
+1. Get App ID:
+   - Go to your app in [Developer Console](https://open.larkoffice.com/app)
+   - Find "App ID" (also called "Client ID") in "Credentials & Basic Info"
+   - It usually starts with "cli_" for internal apps
+
+2. Get App Secret:
+   - In the same "Credentials & Basic Info" page
+   - Find "App Secret" (also called "Client Secret")
+   - Click "View" to see the secret
+   - Note: Keep your App Secret secure and never share it publicly
+
+### Get Folder Token
+
+To get a folder token:
+
+1. Open the target folder in Lark
+2. Copy the folder URL, for example: `https://xxx.feishu.cn/drive/folder/xxx`
+3. The last segment in the URL is your folder token
+4. Alternative method:
+   - Use the Drive API to list folders
+   - Find the target folder's token in the response
+
+Note: Make sure your app has the `drive:drive:readonly` permission to access folders.
+
+### Required Permissions
 ```
-wiki:wiki:readonly
-wiki:node:read
-docx:document:readonly
-search:docs:read
+wiki:wiki:readonly   # Wiki read-only access
+wiki:node:read      # Wiki node read access
+docx:document:readonly   # Document read-only access
+search:docs:read    # Document search access
+drive:drive:readonly    # Drive read-only access
 ```
 
 ### Environment Variables
@@ -50,9 +94,10 @@ Before using this MCP server, you need to set up your Lark application credentia
 ```bash
 export LARK_APP_ID="your_app_id"
 export LARK_APP_SECRET="your_app_secret"
-export OAUTH_HOST="localhost"               # OAuth callback server host (default: localhost)
+export FOLDER_TOKEN="your_folder_token"    # Specified folder token
+export OAUTH_HOST="localhost"              # OAuth callback server host (default: localhost)
 export OAUTH_PORT="9997"                   # OAuth callback server port (default: 9997)
- ```
+```
 
 ## Usage
 
@@ -61,13 +106,13 @@ Configure in Claude desktop:
 ```json
 "mcpServers": {
     "lark_doc": {
-        "command": "uvx",
-        "args": ["mcp-server-my-lark-doc"],
+        "command": "mcp-lark-doc-manage",
         "env": {
             "LARK_APP_ID": "your app id",
             "LARK_APP_SECRET": "your app secret",
-            "OAUTH_HOST": "localhost",   // optional   
-            "OAUTH_PORT": "9997"        // optional  
+            "FOLDER_TOKEN": "your folder token",
+            "OAUTH_HOST": "localhost",   // optional
+            "OAUTH_PORT": "9997"         // optional
         }
     }
 }
@@ -94,6 +139,19 @@ Configure in Claude desktop:
      - create_time: Document creation time
      - update_time: Document last update time
 
+3. list_folder_content
+   - Purpose: List contents of a specified folder
+   - Args:
+     - page_size (int, optional) - Number of results to return (default: 10)
+   - Returns: JSON string containing file list with following fields:
+     - name: File name
+     - type: File type
+     - token: File token
+     - url: File URL
+     - create_time: Creation time
+     - edit_time: Last edit time
+     - owner_id: Owner ID
+
 ## Error Messages
 
 Common error messages and their solutions:
@@ -104,7 +162,8 @@ Common error messages and their solutions:
 - "Failed to get app access token": Check your application credentials and network connection
 - "Failed to get wiki document real ID": Check if the wiki document exists and you have proper permissions
 - "Document content is empty": The document might be empty or you might not have access to its content
-- "Authorization timeout": ser didn't complete authorization within 5 minutes
+- "Authorization timeout": User didn't complete authorization within 5 minutes
+- "Folder token not configured": Check your FOLDER_TOKEN environment variable
 
 ## Development Notes
 
@@ -114,6 +173,7 @@ Default configuration:
 
 - Host: localhost
 - Port: 9997
+
 Customize via environment variables:
 
 - OAUTH_HOST: Set callback server host
