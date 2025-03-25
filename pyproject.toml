@@ -20,6 +20,15 @@ dependencies = [
     "aiohttp>=3.9.0"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pyright>=1.1.389",
+    "ruff>=0.7.3",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0"
+]
+
 [project.scripts]
 mcp-server-my-lark-doc = "mcp_server_my_lark_doc:main"  # 修改这一行
 
@@ -28,4 +37,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.uv]
-dev-dependencies = ["pyright>=1.1.389", "ruff>=0.7.3"]
+dev-dependencies = [
+    "pyright>=1.1.389",
+    "ruff>=0.7.3",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0"
+]
