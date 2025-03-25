@@ -106,17 +106,23 @@ Configure in Claude desktop:
 ```json
 "mcpServers": {
     "lark_doc": {
-        "command": "mcp-lark-doc-manage",
+        "command": "/path/to/your/uvx",
+        "args": [
+            "mcp-lark-doc-manage"
+        ],
         "env": {
-            "LARK_APP_ID": "your app id",
-            "LARK_APP_SECRET": "your app secret",
-            "FOLDER_TOKEN": "your folder token",
-            "OAUTH_HOST": "localhost",   // optional
-            "OAUTH_PORT": "9997"         // optional
+            "LARK_APP_ID": "your_app_id",
+            "LARK_APP_SECRET": "your_app_secret",
+            "OAUTH_HOST": "localhost",
+            "OAUTH_PORT": "9997",
+            "FOLDER_TOKEN": "your_folder_token",
+            "DEBUG": "1"  // optional, enable debug mode
         }
     }
 }
 ```
+
+Note: Replace `/path/to/your/uvx` with your actual uvx path (e.g., `/Users/username/anaconda3/bin/uvx`).
 
 ### Available Tools
 
