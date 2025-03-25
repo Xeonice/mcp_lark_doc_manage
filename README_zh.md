@@ -1,4 +1,4 @@
-# MCP Server My Lark Doc
+# MCP Lark Doc Manage
 
 飞书文档访问的 Model Context Protocol 服务器。
 
@@ -26,7 +26,7 @@
 ## 安装
 
 ```bash
-uvx mcp-server-my-lark-doc
+uvx mcp-lark-doc-manage
 ```
 
 ## 配置
@@ -106,7 +106,7 @@ export OAUTH_PORT="9997"                   # OAuth 回调服务器端口（默�
 ```json
 "mcpServers": {
     "lark_doc": {
-        "command": "mcp-server-my-lark-doc",
+        "command": "mcp-lark-doc-manage",
         "env": {
             "LARK_APP_ID": "你的应用 ID",
             "LARK_APP_SECRET": "你的应用密钥",

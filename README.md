@@ -1,4 +1,4 @@
-# MCP Server My Lark Doc
+# MCP Lark Doc Manage
 
 A Model Context Protocol server for searching and accessing Lark(Feishu) documents.
 
@@ -26,7 +26,7 @@ A Model Context Protocol server for searching and accessing Lark(Feishu) documen
 ## Installation
 
 ```bash
-uvx mcp-server-my-lark-doc
+uvx mcp-lark-doc-manage
 ```
 
 ## Configuration
@@ -106,7 +106,7 @@ Configure in Claude desktop:
 ```json
 "mcpServers": {
     "lark_doc": {
-        "command": "mcp-server-my-lark-doc",
+        "command": "mcp-lark-doc-manage",
         "env": {
             "LARK_APP_ID": "your app id",
             "LARK_APP_SECRET": "your app secret",
