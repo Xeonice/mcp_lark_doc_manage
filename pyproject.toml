@@ -1,6 +1,6 @@
 [project]
 name = "mcp-lark-doc-manage"
-version = "0.1.6"  # 更新版本号
+version = "0.1.7"  # 更新版本号
 description = "A Model Context Protocol server for accessing Lark documents"
 readme = "README.md"
 requires-python = ">=3.10"
