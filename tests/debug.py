@@ -6,8 +6,8 @@ sys.path.insert(0, '.')
 from mcp_lark_doc_manage.markdown_converter import convert_markdown_to_blocks
 from tests.markdown_conversion.conftest import load_test_data, load_expected_result
 
-markdown = load_test_data('lists.md')
-expected = load_expected_result('lists_result.json')
+markdown = load_test_data('todo_lists.md')
+expected = load_expected_result('todo_lists_result.json')
 result = convert_markdown_to_blocks(markdown)
 
 print('Type of result:', json.dumps(result, indent=4))

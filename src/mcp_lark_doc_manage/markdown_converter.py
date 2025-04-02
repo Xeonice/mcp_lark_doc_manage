@@ -688,7 +688,7 @@ def convert_markdown_to_blocks(markdown_text):
         following the correct format expected by the test cases.
     """
     # Parse markdown using mistune
-    markdown = mistune.create_markdown(hard_wrap=True, renderer='ast', plugins=['strikethrough'])
+    markdown = mistune.create_markdown(hard_wrap=True, renderer='ast', plugins=['strikethrough', 'task_lists', 'table'])
     tokens = markdown(markdown_text)
     print("Parsed tokens:", tokens)  # Debug print
         
