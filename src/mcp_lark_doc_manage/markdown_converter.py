@@ -529,6 +529,154 @@ def process_paragraph_node(node, result, get_next_block_id):
     #     empty_block = create_empty_text_block(block_id)
     #     result['descendants'].append(empty_block)
 
+def process_list_node(node, result, get_next_block_id):
+    """处理列表节点并将其转换为对应的块。
+    
+    Args:
+        node: Markdown AST 中的列表节点
+        result: 结果数据结构
+        get_next_block_id: 生成块ID的函数
+        
+    Returns:
+        None，直接修改 result
+    """
+    # 检查列表标记类型
+    is_ordered = node.get('attrs', {}).get('ordered', False)
+    
+    # 创建一个函数来递归处理列表项
+    def process_list_item(item, parent_id=None, is_first_item=False):
+        # 为每个列表项生成一个新的唯一ID
+        item_block_id = get_next_block_id()
+        
+        # 如果是顶级列表项，添加到父结果的children_id
+        if parent_id is None:
+            result['children_id'].append(item_block_id)
+        
+        # 确定正确的block_type和field_name
+        if is_ordered:
+            block_type = 13  # 有序列表类型
+            field_name = 'ordered'
+        else:
+            block_type = 12  # 无序列表类型
+            field_name = 'bullet'
+        
+        # 创建列表项基本结构
+        if is_ordered:
+            # 有序列表的结构，先放block_type和block_id
+            block = OrderedDict([
+                ('block_type', block_type),
+                ('block_id', item_block_id),
+            ])
+            # 后面会根据是否有子项来决定是否添加children字段
+        else:
+            # 无序列表结构
+            block = OrderedDict([
+                ('block_type', block_type),
+                ('block_id', item_block_id),
+                (field_name, OrderedDict([
+                    ('elements', []),
+                    ('style', OrderedDict([
+                        ('align', 1),
+                        ('folded', False)
+                    ]))
+                ]))
+            ])
+        
+        # 处理列表项中的内容
+        has_nested_list = False
+        nested_list_node = None
+        
+        # 创建元素列表
+        elements = []
+        
+        for child in item.get('children', []):
+            if child['type'] == 'paragraph' or child['type'] == 'block_text':
+                # 处理段落或文本块中的每个元素
+                for para_child in child.get('children', []):
+                    if para_child['type'] == 'text':
+                        text_run = process_text_node(para_child)
+                        elements.append(text_run)
+                    elif para_child['type'] == 'link':
+                        text_run = process_link_node(para_child)
+                        elements.append(text_run)
+                    elif para_child['type'] == 'strong':
+                        text_run = process_strong_node(para_child)
+                        elements.append(text_run)
+                    elif para_child['type'] == 'emphasis':
+                        text_run = process_emphasis_node(para_child)
+                        elements.append(text_run)
+                    elif para_child['type'] == 'codespan':
+                        text_run = process_codespan_node(para_child)
+                        elements.append(text_run)
+                    elif para_child['type'] == 'strikethrough':
+                        text_run = process_del_node(para_child)
+                        elements.append(text_run)
+            elif child['type'] == 'list':
+                has_nested_list = True
+                nested_list_node = child
+        
+        # 拥有子项的列表项需要先添加children字段
+        if has_nested_list and is_ordered:
+            block['children'] = []
+        
+        # 添加具体内容
+        if is_ordered:
+            # 有序列表项
+            style = OrderedDict([
+                ('align', 1),
+                ('folded', False),
+            ])
+            if is_first_item:
+                style['sequence'] = "1"
+            else:
+                style['sequence'] = "auto"
+                
+            # 添加ordered字段和内容
+            block['ordered'] = OrderedDict([
+                ('elements', elements),
+                ('style', style)
+            ])
+        else:
+            # 无序列表项，直接添加内容到之前创建的结构中
+            block[field_name]['elements'] = elements
+            
+            # 拥有子项的列表项需要添加children字段
+            if has_nested_list:
+                block['children'] = []
+        
+        # 如果有父项，则添加到父项的children中
+        if parent_id:
+            # 确保父块有children字段
+            parent_block = next((b for b in result['descendants'] if b['block_id'] == parent_id), None)
+            if parent_block and 'children' in parent_block:
+                parent_block['children'].append(item_block_id)
+        
+        # 添加当前列表项到结果中
+        result['descendants'].append(block)
+        
+        # 如果有嵌套列表，递归处理
+        if has_nested_list and nested_list_node:
+            nested_is_ordered = nested_list_node.get('attrs', {}).get('ordered', False)
+            
+            # 处理嵌套列表中的每个项目
+            for i, nested_item in enumerate(nested_list_node.get('children', [])):
+                if nested_item['type'] == 'list_item':
+                    process_list_item(nested_item, item_block_id, i == 0)
+        
+        return item_block_id
+    
+    # 处理列表中的每个顶级项目
+    for i, item in enumerate(node.get('children', [])):
+        if item['type'] == 'list_item':
+            process_list_item(item, None, i == 0)
+    
+    # 如果是顶级无序列表，在列表后添加一个空行
+    if not node.get('attrs', {}).get('depth', 0) > 0 and not is_ordered:
+        empty_block_id = get_next_block_id()
+        result['children_id'].append(empty_block_id)
+        empty_block = create_empty_text_block(empty_block_id)
+        result['descendants'].append(empty_block)
+
 def convert_markdown_to_blocks(markdown_text):
     """Convert markdown text to blocks.
 

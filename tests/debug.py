@@ -12,13 +12,13 @@ result = convert_markdown_to_blocks(markdown)
 
 print('Type of result:', json.dumps(result, indent=4))
 # 将结果输出到本地 json 文件
-with open('debug_code_blocks_result.json', 'w', encoding='utf-8') as f:
+with open('debug_result.json', 'w', encoding='utf-8') as f:
     json.dump(result, f, indent=4, ensure_ascii=False)
 
 # 将期望结果也输出到本地 json 文件以便比较
-with open('debug_code_blocks_expected.json', 'w', encoding='utf-8') as f:
+with open('debug_expected.json', 'w', encoding='utf-8') as f:
     json.dump(expected, f, indent=4, ensure_ascii=False)
 
-print(f"Results saved to 'debug_code_blocks_result.json' and 'debug_code_blocks_expected.json'")
+print(f"Results saved to 'debug_result.json' and 'debug_expected.json'")
 
 print('Type of expected:', json.dumps(expected, indent=4))

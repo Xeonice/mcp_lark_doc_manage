@@ -530,7 +530,7 @@
       "elements": [
         {
           "text_run": {
-            "content": "第四层有序列表项 ",
+            "content": "第四层有序列表项",
             "text_element_style": {
               "bold": false,
               "inline_code": false,
