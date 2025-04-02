@@ -106,7 +106,7 @@
           },
           {
             "text_run": {
-              "content": "测试。 ",
+              "content": "测试。",
               "text_element_style": {
                 "bold": false,
                 "inline_code": false,

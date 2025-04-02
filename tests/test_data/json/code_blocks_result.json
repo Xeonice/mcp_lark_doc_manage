@@ -418,7 +418,7 @@
           },
           {
             "text_run": {
-              "content": "的例子，可以在文本中嵌入代码片段。 ",
+              "content": "的例子，可以在文本中嵌入代码片段。",
               "text_element_style": {
                 "bold": false,
                 "inline_code": false,

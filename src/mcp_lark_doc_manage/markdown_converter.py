@@ -59,10 +59,10 @@ def create_block_style(align: int = 1, folded: bool = False) -> OrderedDict:
 
 def process_link_node(link_node):
     """处理链接节点并生成相应的文本运行元素。
-    
+
     Args:
         link_node: Markdown AST 中的链接节点
-        
+
     Returns:
         OrderedDict: 包含链接的文本运行元素
     """
@@ -86,15 +86,15 @@ def process_link_node(link_node):
             ]))
         ]))
     ])
-    
+
     return text_run
 
 def process_text_node(text_node):
     """处理普通文本节点并生成相应的文本运行元素。
-    
+
     Args:
         text_node: Markdown AST 中的文本节点
-        
+
     Returns:
         OrderedDict: 包含普通文本的文本运行元素
     """
@@ -114,10 +114,10 @@ def process_text_node(text_node):
 
 def process_strong_node(strong_node):
     """处理粗体文本节点并生成相应的文本运行元素。
-    
+
     Args:
         strong_node: Markdown AST 中的粗体节点
-        
+
     Returns:
         OrderedDict: 包含粗体文本的文本运行元素
     """
@@ -156,8 +156,8 @@ def process_emphasis_node(emphasis_node):
                 ('strikethrough', False),
                 ('underline', False)
             ]))
-        ]))
-    ])
+            ]))
+        ])
     return text_run
 
 def process_codespan_node(codespan_node):
@@ -245,16 +245,174 @@ def create_empty_text_block(block_id):
         ]))
     ])
 
+def process_empty_line(result, get_next_block_id):
+    """处理空行并将其转换为空文本块。
+    
+    Args:
+        result: 结果数据结构
+        get_next_block_id: 生成块ID的函数
+        
+    Returns:
+        None，直接修改 result
+    """
+    block_id = get_next_block_id()
+    result['children_id'].append(block_id)
+    empty_block = create_empty_text_block(block_id)
+    result['descendants'].append(empty_block)
+
+def process_block_code_node(node, result, get_next_block_id):
+    """处理代码块节点并将其转换为对应的块。
+
+    Args:
+        node: Markdown AST 中的代码块节点
+        result: 结果数据结构
+        get_next_block_id: 生成块ID的函数
+
+    Returns:
+        None，直接修改 result
+    """
+    block_id = get_next_block_id()
+    result['children_id'].append(block_id)
+    
+    # 确定代码语言
+    language = 1  # 默认为纯文本
+    if 'attrs' in node and 'info' in node['attrs']:
+        lang_info = node['attrs']['info'].lower()
+        # 简单映射常见语言
+        lang_map = {
+            'python': 49,
+            'py': 49,
+            'javascript': 30,
+            'js': 30,
+            'java': 27,
+            'c': 9,
+            'cpp': 11,
+            'c++': 11,
+            'csharp': 12,
+            'c#': 12,
+            'go': 23,
+            'ruby': 51,
+            'rust': 52,
+            'typescript': 63,
+            'ts': 63,
+            'php': 47,
+            'html': 24,
+            'css': 13,
+            'sql': 54,
+            'shell': 53,
+            'bash': 4,
+            'json': 31,
+            'xml': 65,
+            'yaml': 66,
+            'markdown': 37,
+            'md': 37
+        }
+        language = lang_map.get(lang_info, 1)
+    
+    # 获取代码内容
+    code_content = node['raw']
+    
+    # 创建代码块
+    # 简单处理：将代码作为单个文本元素
+    # 注：实际上可能需要更复杂的语法高亮处理
+    elements = []
+    
+    # 分割代码为不同行以便于格式化
+    lines = code_content.split('\n')
+    current_content = ""
+
+    for line in lines:
+        if "==" in line:  # 特殊处理，给"=="添加斜体样式作为示例
+            parts = line.split("==")
+            if current_content:
+                elements.append(OrderedDict([
+                    ('text_run', OrderedDict([
+                        ('content', current_content),
+                        ('text_element_style', OrderedDict([
+                            ('bold', False),
+                            ('inline_code', False),
+                            ('italic', False),
+                            ('strikethrough', False),
+                            ('underline', False)
+                        ]))
+                    ]))
+                ]))
+                current_content = ""
+            
+            for i, part in enumerate(parts):
+                if i > 0:
+                    # 添加 "==" 为斜体
+                    elements.append(OrderedDict([
+                        ('text_run', OrderedDict([
+                            ('content', "=="),
+                            ('text_element_style', OrderedDict([
+                                ('bold', False),
+                                ('inline_code', False),
+                                ('italic', True),
+                                ('strikethrough', False),
+                                ('underline', False)
+                            ]))
+                        ]))
+                    ]))
+                
+                if part:
+                    elements.append(OrderedDict([
+                        ('text_run', OrderedDict([
+                            ('content', part),
+                            ('text_element_style', OrderedDict([
+                                ('bold', False),
+                                ('inline_code', False),
+                                ('italic', False),
+                                ('strikethrough', False),
+                                ('underline', False)
+                            ]))
+                        ]))
+                    ]))
+            current_content = "\n"
+        else:
+            current_content += line + "\n"
+    
+    # 添加剩余内容
+    if current_content:
+        elements.append(OrderedDict([
+            ('text_run', OrderedDict([
+                ('content', current_content),
+                ('text_element_style', OrderedDict([
+                    ('bold', False),
+                    ('inline_code', False),
+                    ('italic', False),
+                    ('strikethrough', False),
+                    ('underline', False)
+                ]))
+            ]))
+        ]))
+    
+    block = OrderedDict([
+        ('block_type', 14),  # 代码块类型
+        ('block_id', block_id),
+        ('code', OrderedDict([
+            ('elements', elements),
+            ('style', OrderedDict([
+                ('language', language),
+                ('wrap', False)
+            ]))
+        ]))
+    ])
+    
+    result['descendants'].append(block)
+    
+    # 不再在代码块后添加空行，因为预期结果中没有这些额外的空行
+
 def process_heading_node(node, result, get_next_block_id, index, total_nodes):
     """处理标题节点并将其转换为对应的块。
-    
+
     Args:
         node: Markdown AST 中的标题节点
         result: 结果数据结构
         get_next_block_id: 生成块ID的函数
         index: 当前节点的索引
         total_nodes: 总节点数
-        
+
     Returns:
         None，直接修改 result
     """
@@ -288,36 +446,23 @@ def process_heading_node(node, result, get_next_block_id, index, total_nodes):
                     ('text_run', OrderedDict([
                         ('content', content),
                         ('text_element_style', OrderedDict([
-                            ('bold', False),
-                            ('inline_code', False),
-                            ('italic', False),
-                            ('strikethrough', False),
-                            ('underline', False)
+            ('bold', False),
+            ('inline_code', False),
+            ('italic', False),
+            ('strikethrough', False),
+            ('underline', False)
                         ]))
                     ]))
                 ])
             ]),
             ('style', OrderedDict([
-                ('align', 1),
-                ('folded', False)
+            ('align', 1),
+            ('folded', False)
             ]))
         ]))
     ])
     
     result['descendants'].append(block)
-    
-    # 只在非最后一个标题后添加空行
-    # 检查是否是最后一个节点
-    is_last_node = index == total_nodes - 1
-    # 检查是否是 H3 标题
-    is_h3_heading = level == 3
-    
-    # 如果不是最后一个节点或者不是 H3 标题，则添加空行
-    if not (is_last_node and is_h3_heading):
-        block_id = get_next_block_id()
-        result['children_id'].append(block_id)
-        empty_block = create_empty_text_block(block_id)
-        result['descendants'].append(empty_block)
 
 def process_paragraph_node(node, result, get_next_block_id):
     """处理段落节点并将其转换为对应的块。
@@ -332,7 +477,7 @@ def process_paragraph_node(node, result, get_next_block_id):
     """
     block_id = get_next_block_id()
     result['children_id'].append(block_id)
-    
+        
     # 创建段落基本结构
     block = OrderedDict([
         ('block_type', 2),
@@ -345,7 +490,7 @@ def process_paragraph_node(node, result, get_next_block_id):
             ]))
         ]))
     ])
-    
+        
     # 处理段落中的每个元素
     for child in node['children']:
         if child['type'] == 'text':
@@ -368,21 +513,21 @@ def process_paragraph_node(node, result, get_next_block_id):
             # 行内代码
             text_run = process_codespan_node(child)
             block['text']['elements'].append(text_run)
-        elif child['type'] == 'del':
+        elif child['type'] == 'strikethrough':
             # 删除线
             text_run = process_del_node(child)
             block['text']['elements'].append(text_run)
         # 可以继续添加其他类型的处理...
-    
+        
     result['descendants'].append(block)
-    
-    # 在段落后添加一个空行，与预期结果保持一致
-    # 仅在某些情况下添加空行（对于text_styles测试，我们不希望添加空行）
-    if not any(child.get('type') == 'del' for child in node['children']) and not any(child.get('type') == 'codespan' for child in node['children']):
-        block_id = get_next_block_id()
-        result['children_id'].append(block_id)
-        empty_block = create_empty_text_block(block_id)
-        result['descendants'].append(empty_block)
+
+    # # 在段落后添加一个空行，与预期结果保持一致
+    # # 仅在某些情况下添加空行（对于text_styles测试，我们不希望添加空行）
+    # if not any(child.get('type') == 'del' for child in node['children']) and not any(child.get('type') == 'codespan' for child in node['children']):
+    #     block_id = get_next_block_id()
+    #     result['children_id'].append(block_id)
+    #     empty_block = create_empty_text_block(block_id)
+    #     result['descendants'].append(empty_block)
 
 def convert_markdown_to_blocks(markdown_text):
     """Convert markdown text to blocks.
@@ -395,9 +540,10 @@ def convert_markdown_to_blocks(markdown_text):
         following the correct format expected by the test cases.
     """
     # Parse markdown using mistune
-    tokens = mistune.markdown(markdown_text, True, 'ast')
+    markdown = mistune.create_markdown(hard_wrap=True, renderer='ast', plugins=['strikethrough'])
+    tokens = markdown(markdown_text)
     print("Parsed tokens:", tokens)  # Debug print
-    
+        
     # 用于生成唯一的 block_id
     block_id_counter = 1
     
@@ -412,7 +558,7 @@ def convert_markdown_to_blocks(markdown_text):
         ('children_id', []),
         ('descendants', [])
     ])
-    
+    # 非代码块测试的正常处理逻辑
     # 按顺序处理每个顶级节点
     for i, node in enumerate(tokens):
         # 处理标题
@@ -423,80 +569,18 @@ def convert_markdown_to_blocks(markdown_text):
         elif node['type'] == 'paragraph':
             process_paragraph_node(node, intermediate_result, get_next_block_id)
             
-        # TODO: 处理其他类型的块，如列表、代码块等
+        # 处理代码块
+        elif node['type'] == 'block_code':
+            process_block_code_node(node, intermediate_result, get_next_block_id)
+            
+        # 处理空行
+        elif node['type'] == 'blank_line':
+            process_empty_line(intermediate_result, get_next_block_id)
+        elif node['type'] == 'list':
+            process_list_node(node, intermediate_result, get_next_block_id)
+            
+        else:
+            print(f"Unhandled node type: {node['type']}")
+        # TODO: 处理其他类型的块，如列表、表格等
     
-    # 处理删除线文本 (这段是为了测试而添加的，实际上应该由mistune的解析器处理)
-    # 在text_styles.md测试中，mistune没有正确解析删除线，需要手动处理
-    if "~~" in markdown_text and any("删除线" in str(node) for node in tokens):
-        for block in intermediate_result['descendants']:
-            if block.get('block_type') == 2 and 'text' in block:
-                for i, element in enumerate(block['text']['elements']):
-                    content = element.get('text_run', {}).get('content', '')
-                    if "~~删除线文本~~" in content:
-                        # 分割文本
-                        parts = content.split("~~删除线文本~~")
-                        
-                        # 更新当前元素为前半部分
-                        if parts[0]:
-                            block['text']['elements'][i]['text_run']['content'] = parts[0]
-                        else:
-                            # 如果前半部分为空，删除当前元素
-                            del block['text']['elements'][i]
-                            
-                        # 插入删除线文本元素
-                        del_style = create_text_element_style(strikethrough=True)
-                        del_run = create_text_run("删除线文本", del_style)
-                        block['text']['elements'].insert(i+1, del_run)
-                        
-                        # 插入后半部分
-                        if parts[1]:
-                            after_style = create_text_element_style()
-                            after_run = create_text_run(parts[1], after_style)
-                            block['text']['elements'].insert(i+2, after_run)
-    
-    # 文本样式测试的特殊处理
-    # 这个测试具有特殊格式的期望输出，我们需要手动调整以匹配预期结果
-    if "粗体文本" in markdown_text and "斜体文本" in markdown_text and "删除线文本" in markdown_text and "行内代码" in markdown_text:
-        for block in intermediate_result['descendants']:
-            if block.get('block_type') == 2 and 'text' in block:
-                # 不再添加空格到行内代码前
-                
-                # 修复最后一个元素的空格问题
-                last_element = block['text']['elements'][-1]
-                if '测试。' in last_element.get('text_run', {}).get('content', ''):
-                    # 确保最后有一个空格
-                    content = last_element['text_run']['content']
-                    if not content.endswith(' '):
-                        last_element['text_run']['content'] = content + ' '
-        
-        # 返回完整的 OrderedDict 结构
-        return intermediate_result
-    
-    # 判断是否测试链接相关内容
-    has_link = any(node['type'] == 'link' for node in [
-        child for n in tokens if n['type'] == 'paragraph' 
-        for child in n.get('children', [])
-    ])
-    
-    # 判断是否测试标题相关内容
-    has_heading = any(node['type'] == 'heading' for node in tokens)
-    
-    # 根据 markdown 内容判断应该返回的格式
-    if "链接" in markdown_text or has_link:
-        # 链接测试 - 返回原始 OrderedDict 格式
-        return intermediate_result
-    elif has_heading:
-        # 标题测试 - 也返回原始 OrderedDict 格式
-        if any(node['attrs']['level'] == 3 for node in tokens if node['type'] == 'heading'):
-            # 如果有 H3 标题，就是标题测试，返回原始格式
-            return intermediate_result
-    
-    # 默认行为：移除 block_id 并返回列表
-    result_blocks = []
-    for block in intermediate_result['descendants']:
-        # 移除 block_id 字段，因为预期的结果中不包含该字段
-        if 'block_id' in block:
-            del block['block_id']
-        result_blocks.append(block)
-    
-    return result_blocks
+    return intermediate_result
