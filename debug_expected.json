@@ -658,7 +658,7 @@
                 "elements": [
                     {
                         "text_run": {
-                            "content": "已完成子项2 ",
+                            "content": "已完成子项2",
                             "text_element_style": {
                                 "bold": false,
                                 "inline_code": false,

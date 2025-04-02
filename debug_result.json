@@ -10,7 +10,13 @@
         "8",
         "9",
         "10",
-        "11"
+        "11",
+        "12",
+        "18",
+        "19",
+        "20",
+        "21",
+        "24"
     ],
     "descendants": [
         {
@@ -110,8 +116,108 @@
             }
         },
         {
-            "block_type": 2,
+            "block_type": 17,
             "block_id": "5",
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "待办事项1",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": false,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 17,
+            "block_id": "6",
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "待办事项2",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": false,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 17,
+            "block_id": "7",
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "已完成事项1",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": true,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 17,
+            "block_id": "8",
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "已完成事项2",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": true,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 2,
+            "block_id": "9",
             "text": {
                 "elements": [
                     {
@@ -135,108 +241,12 @@
         },
         {
             "block_type": 4,
-            "block_id": "6",
+            "block_id": "10",
             "heading2": {
                 "elements": [
                     {
                         "text_run": {
                             "content": "嵌套待办列表",
-                            "text_element_style": {
-                                "bold": false,
-                                "inline_code": false,
-                                "italic": false,
-                                "strikethrough": false,
-                                "underline": false
-                            }
-                        }
-                    }
-                ],
-                "style": {
-                    "align": 1,
-                    "folded": false
-                }
-            }
-        },
-        {
-            "block_type": 2,
-            "block_id": "7",
-            "text": {
-                "elements": [
-                    {
-                        "text_run": {
-                            "content": "",
-                            "text_element_style": {
-                                "bold": false,
-                                "inline_code": false,
-                                "italic": false,
-                                "strikethrough": false,
-                                "underline": false
-                            }
-                        }
-                    }
-                ],
-                "style": {
-                    "align": 1,
-                    "folded": false
-                }
-            }
-        },
-        {
-            "block_type": 2,
-            "block_id": "8",
-            "text": {
-                "elements": [
-                    {
-                        "text_run": {
-                            "content": "",
-                            "text_element_style": {
-                                "bold": false,
-                                "inline_code": false,
-                                "italic": false,
-                                "strikethrough": false,
-                                "underline": false
-                            }
-                        }
-                    }
-                ],
-                "style": {
-                    "align": 1,
-                    "folded": false
-                }
-            }
-        },
-        {
-            "block_type": 4,
-            "block_id": "9",
-            "heading2": {
-                "elements": [
-                    {
-                        "text_run": {
-                            "content": "混合待办列表",
-                            "text_element_style": {
-                                "bold": false,
-                                "inline_code": false,
-                                "italic": false,
-                                "strikethrough": false,
-                                "underline": false
-                            }
-                        }
-                    }
-                ],
-                "style": {
-                    "align": 1,
-                    "folded": false
-                }
-            }
-        },
-        {
-            "block_type": 2,
-            "block_id": "10",
-            "text": {
-                "elements": [
-                    {
-                        "text_run": {
-                            "content": "",
                             "text_element_style": {
                                 "bold": false,
                                 "inline_code": false,
@@ -273,6 +283,395 @@
                 ],
                 "style": {
                     "align": 1,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 17,
+            "block_id": "12",
+            "children": [
+                "13",
+                "14",
+                "17"
+            ],
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "父级待办事项",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": false,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 17,
+            "block_id": "13",
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "子级待办事项1",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": false,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 17,
+            "block_id": "14",
+            "children": [
+                "15",
+                "16"
+            ],
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "子级待办事项2",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": true,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 17,
+            "block_id": "15",
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "孙级待办事项1",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": false,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 17,
+            "block_id": "16",
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "孙级待办事项2",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": true,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 17,
+            "block_id": "17",
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "子级待办事项3",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": false,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 2,
+            "block_id": "18",
+            "text": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 4,
+            "block_id": "19",
+            "heading2": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "混合待办列表",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 2,
+            "block_id": "20",
+            "text": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 17,
+            "block_id": "21",
+            "children": [
+                "22",
+                "23"
+            ],
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "待办事项1",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": false,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 17,
+            "block_id": "22",
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "已完成子项1",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": true,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 17,
+            "block_id": "23",
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "未完成子项1",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": false,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 17,
+            "block_id": "24",
+            "children": [
+                "25",
+                "26"
+            ],
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "已完成事项1",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": true,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 17,
+            "block_id": "25",
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "未完成子项2",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": false,
+                    "folded": false
+                }
+            }
+        },
+        {
+            "block_type": 17,
+            "block_id": "26",
+            "todo": {
+                "elements": [
+                    {
+                        "text_run": {
+                            "content": "已完成子项2",
+                            "text_element_style": {
+                                "bold": false,
+                                "inline_code": false,
+                                "italic": false,
+                                "strikethrough": false,
+                                "underline": false
+                            }
+                        }
+                    }
+                ],
+                "style": {
+                    "align": 1,
+                    "done": true,
                     "folded": false
                 }
             }

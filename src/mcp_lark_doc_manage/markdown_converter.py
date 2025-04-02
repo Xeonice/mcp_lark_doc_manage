@@ -529,7 +529,7 @@ def process_paragraph_node(node, result, get_next_block_id):
     #     empty_block = create_empty_text_block(block_id)
     #     result['descendants'].append(empty_block)
 
-def process_list_node(node, result, get_next_block_id):
+def process_list_node(node, result, get_next_block_id, index, total_nodes):
     """处理列表节点并将其转换为对应的块。
     
     Args:
@@ -611,6 +611,9 @@ def process_list_node(node, result, get_next_block_id):
                     elif para_child['type'] == 'strikethrough':
                         text_run = process_del_node(para_child)
                         elements.append(text_run)
+                    elif para_child['type'] == 'task_list_item':
+                        text_run = process_task_list_item(para_child, result, get_next_block_id, item_block_id)
+                        elements.append(text_run)
             elif child['type'] == 'list':
                 has_nested_list = True
                 nested_list_node = child
@@ -669,13 +672,107 @@ def process_list_node(node, result, get_next_block_id):
     for i, item in enumerate(node.get('children', [])):
         if item['type'] == 'list_item':
             process_list_item(item, None, i == 0)
+        if item['type'] == 'task_list_item':
+            process_task_list_item(item, result, get_next_block_id)
     
-    # 如果是顶级无序列表，在列表后添加一个空行
-    if not node.get('attrs', {}).get('depth', 0) > 0 and not is_ordered:
+    # 如果是顶级无序列表，且自己不是最后一个元素，在列表后添加一个空行
+    if not node.get('attrs', {}).get('depth', 0) > 0 and not is_ordered and index != total_nodes - 1:
         empty_block_id = get_next_block_id()
         result['children_id'].append(empty_block_id)
         empty_block = create_empty_text_block(empty_block_id)
         result['descendants'].append(empty_block)
+
+def process_task_list_item(node, result, get_next_block_id, parent_id=None):
+    """处理待办事项节点并将其转换为对应的块。
+    
+    Args:
+        node: Markdown AST 中的待办事项节点
+        result: 结果数据结构
+        get_next_block_id: 生成块ID的函数
+        parent_id: 父节点 ID，用于嵌套待办列表
+        
+    Returns:
+        str: 创建的块的 ID
+    """
+    item_id = get_next_block_id()
+    
+    # 如果没有父 ID，则该项是顶级项，需要添加到 children_id
+    if parent_id is None:
+        result['children_id'].append(item_id)
+    
+    # 判断待办事项是否已完成
+    is_checked = node.get('attrs', {}).get('checked', False)
+    
+    # 创建基本的待办事项块
+    block = OrderedDict([
+        ('block_type', 17),  # 17 是待办事项块的类型
+        ('block_id', item_id),
+    ])
+    
+    # 处理待办事项内容
+    content = ""
+    elements = []
+    has_nested_list = False
+    nested_list_node = None
+    
+    for child in node.get('children', []):
+        if child['type'] == 'block_text' or child['type'] == 'paragraph':
+            # 处理文本内容
+            text = ''.join([text_child['raw'] for text_child in child.get('children', [])])
+            content = text
+            
+            # 创建文本运行元素
+            text_run = OrderedDict([
+                ('text_run', OrderedDict([
+                    ('content', content),
+                    ('text_element_style', OrderedDict([
+                        ('bold', False),
+                        ('inline_code', False),
+                        ('italic', False),
+                        ('strikethrough', False),
+                        ('underline', False)
+                    ]))
+                ]))
+            ])
+            elements.append(text_run)
+        elif child['type'] == 'list':
+            # 标记有嵌套列表
+            has_nested_list = True
+            nested_list_node = child
+    
+    # 如果有嵌套列表，添加 children 字段
+    if has_nested_list:
+        block['children'] = []
+    
+    # 添加 todo 字段
+    block['todo'] = OrderedDict([
+        ('elements', elements),
+        ('style', OrderedDict([
+            ('align', 1),
+            ('done', is_checked),
+            ('folded', False)
+        ]))
+    ])
+    
+    # 添加待办事项块到结果中
+    result['descendants'].append(block)
+    
+    # 如果有嵌套列表，处理嵌套列表中的每个项目
+    if has_nested_list and nested_list_node:
+        for nested_item in nested_list_node.get('children', []):
+            if nested_item['type'] == 'task_list_item':
+                # 递归处理嵌套的待办事项
+                child_id = process_task_list_item(nested_item, result, get_next_block_id, item_id)
+                # 将子项的 ID 添加到当前项的 children 中
+                block['children'].append(child_id)
+    
+    # 如果有父 ID，将该项添加到父项的 children 中
+    if parent_id:
+        parent_block = next((b for b in result['descendants'] if b['block_id'] == parent_id), None)
+        if parent_block and 'children' not in parent_block:
+            parent_block['children'] = []
+    
+    return item_id
 
 def convert_markdown_to_blocks(markdown_text):
     """Convert markdown text to blocks.
@@ -688,7 +785,7 @@ def convert_markdown_to_blocks(markdown_text):
         following the correct format expected by the test cases.
     """
     # Parse markdown using mistune
-    markdown = mistune.create_markdown(hard_wrap=True, renderer='ast', plugins=['strikethrough', 'task_lists', 'table'])
+    markdown = mistune.create_markdown(escape=False, hard_wrap=False, renderer='ast', plugins=['strikethrough', 'task_lists', 'table'])
     tokens = markdown(markdown_text)
     print("Parsed tokens:", tokens)  # Debug print
         
@@ -724,9 +821,10 @@ def convert_markdown_to_blocks(markdown_text):
         # 处理空行
         elif node['type'] == 'blank_line':
             process_empty_line(intermediate_result, get_next_block_id)
+        
+        # 处理普通列表
         elif node['type'] == 'list':
-            process_list_node(node, intermediate_result, get_next_block_id)
-            
+            process_list_node(node, intermediate_result, get_next_block_id, i, len(tokens))
         else:
             print(f"Unhandled node type: {node['type']}")
         # TODO: 处理其他类型的块，如列表、表格等
