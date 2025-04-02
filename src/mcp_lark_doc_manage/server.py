@@ -15,6 +15,14 @@ from lark_oapi.api.search.v2 import *
 from aiohttp import web
 import secrets
 from urllib.parse import quote
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Get configuration from environment variables
 # Add global variables below imports
@@ -29,17 +37,30 @@ FEISHU_AUTHORIZE_URL = "https://accounts.feishu.cn/open-apis/authen/v1/authorize
 FOLDER_TOKEN = os.getenv("FOLDER_TOKEN", "")  # 添加全局文件夹 token
 token_lock = asyncio.Lock()  # Add token lock
 
+# Validate required environment variables
+if not LARK_APP_ID or not LARK_APP_SECRET:
+    logger.error("Missing required environment variables: LARK_APP_ID or LARK_APP_SECRET")
+    raise ValueError("Missing required environment variables: LARK_APP_ID or LARK_APP_SECRET")
+
 try:
+    logger.info("Initializing Lark client...")
     larkClient = lark.Client.builder() \
         .app_id(LARK_APP_ID) \
         .app_secret(LARK_APP_SECRET) \
         .build()
+    logger.info("Lark client initialized successfully")
 except Exception as e:
-    print(f"Failed to initialize Lark client: {str(e)}")
-    larkClient = None
+    logger.error(f"Failed to initialize Lark client: {str(e)}", exc_info=True)
+    raise
 
 # Initialize FastMCP server
-mcp = FastMCP("lark_doc")
+try:
+    logger.info("Initializing FastMCP server...")
+    mcp = FastMCP("lark_doc")
+    logger.info("FastMCP server initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize FastMCP server: {str(e)}", exc_info=True)
+    raise
 
 @mcp.tool()
 async def get_lark_doc_content(documentUrl: str) -> str:
@@ -375,3 +396,255 @@ async def list_folder_content(page_size: int = 10) -> str:
         return json.dumps(items, ensure_ascii=False, indent=2)
     except Exception as e:
         return f"Failed to parse file contents: {str(e)}"
+
+def _convert_markdown_to_blocks(markdown_content: str) -> list:
+    """Convert markdown content to Feishu document blocks
+    
+    Args:
+        markdown_content: Markdown content to convert
+        
+    Returns:
+        List of document blocks
+    """
+    blocks = []
+    lines = markdown_content.split('\n')
+    current_block = None
+    
+    for line in lines:
+        # Skip empty lines
+        if not line.strip():
+            continue
+            
+        # Handle headings
+        if line.startswith('#'):
+            level = len(re.match('^#+', line).group())
+            text = line.lstrip('#').strip()
+            blocks.append({
+                "block_type": 1,  # Heading block
+                "heading": {
+                    "elements": [{
+                        "text_run": {
+                            "content": text,
+                            "text_element_style": {
+                                "bold": True,
+                                "inline_code": False,
+                                "italic": False,
+                                "strikethrough": False,
+                                "underline": False
+                            }
+                        }
+                    }],
+                    "style": {
+                        "heading_level": level
+                    }
+                }
+            })
+            continue
+            
+        # Handle paragraphs
+        if not current_block:
+            current_block = {
+                "block_type": 2,  # Text block
+                "text": {
+                    "elements": [],
+                    "style": {
+                        "align": 1
+                    }
+                }
+            }
+            
+        # Add text element to current block
+        current_block["text"]["elements"].append({
+            "text_run": {
+                "content": line,
+                "text_element_style": {
+                    "bold": False,
+                    "inline_code": False,
+                    "italic": False,
+                    "strikethrough": False,
+                    "underline": False
+                }
+            }
+        })
+        
+        # End current block if it's a complete paragraph
+        if line.endswith(('.', '!', '?')):
+            blocks.append(current_block)
+            current_block = None
+            
+    # Add any remaining block
+    if current_block:
+        blocks.append(current_block)
+        
+    return blocks
+
+@mcp.tool()
+async def create_doc(title: str, content: str = "", target_space_id: str = None) -> str:
+    """Create a new Lark document and optionally move it to a specified wiki space
+    
+    Args:
+        title: Document title
+        content: Document content (optional)
+        target_space_id: Target wiki space ID to move the document to (optional)
+    """
+    if not larkClient or not larkClient.auth or not larkClient.docx:
+        logger.error("Lark client not properly initialized")
+        return "Lark client not properly initialized"
+                
+    async with token_lock:
+        current_token = USER_ACCESS_TOKEN
+    if not current_token or await _check_token_expired():
+        try:
+            logger.info("Token expired or not found, starting auth flow")
+            current_token = await _auth_flow()
+            logger.info("Successfully obtained new token")
+        except Exception as e:
+            logger.error(f"Failed to get user access token: {str(e)}", exc_info=True)
+            return f"Failed to get user access token: {str(e)}"
+
+    # Get folder token
+    folder_token = await get_folder_token()
+    if not folder_token:
+        logger.error("Folder token not configured")
+        return "Folder token not configured"
+
+    try:
+        # Step 1: Create document
+        logger.info(f"Creating document with title: {title}")
+        create_request: lark.BaseRequest = lark.BaseRequest.builder() \
+            .http_method(lark.HttpMethod.POST) \
+            .uri("/open-apis/docx/v1/documents") \
+            .token_types({lark.AccessTokenType.USER}) \
+            .body({
+                "folder_token": folder_token,
+                "title": title
+            }) \
+            .build()
+
+        option = lark.RequestOption.builder().user_access_token(current_token).build()
+
+        # Send create document request
+        create_response: lark.BaseResponse = larkClient.request(create_request, option)
+
+        if not create_response.success():
+            logger.error(f"Failed to create document: code {create_response.code}, message: {create_response.msg}")
+            return f"Failed to create document: code {create_response.code}, message: {create_response.msg}"
+
+        if not create_response.raw or not create_response.raw.content:
+            logger.error(f"Document creation response is empty, {create_response}")
+            return f"Document creation response is empty, {create_response}"
+
+        create_result = json.loads(create_response.raw.content.decode('utf-8'))
+        if not create_result.get("data") or not create_result["data"].get("document"):
+            logger.error(f"Document creation response is invalid, {create_result}")
+            return f"Document creation response is invalid, {create_result}"
+
+        doc_id = create_result["data"]["document"]["document_id"]
+        logger.info(f"Successfully created document with ID: {doc_id}")
+
+        # Step 2: Move document to wiki space if target_space_id is provided
+        if target_space_id:
+            try:
+                logger.info(f"Moving document {doc_id} to wiki space {target_space_id}")
+                move_request: lark.BaseRequest = lark.BaseRequest.builder() \
+                    .http_method(lark.HttpMethod.POST) \
+                    .uri("/open-apis/wiki/v2/space-node/move") \
+                    .token_types({lark.AccessTokenType.USER}) \
+                    .body({
+                        "space_id": target_space_id,
+                        "node_token": doc_id
+                    }) \
+                    .build()
+
+                move_response: lark.BaseResponse = larkClient.request(move_request, option)
+
+                if not move_response.success():
+                    logger.error(f"Failed to move document: code {move_response.code}, message: {move_response.msg}")
+                    return f"Failed to move document: code {move_response.code}, message: {move_response.msg}"
+
+                logger.info(f"Successfully moved document {doc_id} to wiki space {target_space_id}")
+
+            except Exception as e:
+                logger.error(f"Failed to move document to wiki space: {str(e)}", exc_info=True)
+                return f"Failed to move document to wiki space: {str(e)}"
+
+        # Step 3: Get document blocks
+        logger.info(f"Getting blocks for document {doc_id}")
+        blocks_request: lark.BaseRequest = lark.BaseRequest.builder() \
+            .http_method(lark.HttpMethod.GET) \
+            .uri(f"/open-apis/docx/v1/documents/{doc_id}/blocks") \
+            .token_types({lark.AccessTokenType.USER}) \
+            .build()
+
+        blocks_response: lark.BaseResponse = larkClient.request(blocks_request, option)
+
+        if not blocks_response.success():
+            logger.error(f"Failed to get document blocks: code {blocks_response.code}, message: {blocks_response.msg}")
+            return f"Failed to get document blocks: code {blocks_response.code}, message: {blocks_response.msg}"
+
+        if not blocks_response.raw or not blocks_response.raw.content:
+            logger.error(f"Blocks response is empty, {blocks_response}")
+            return f"Blocks response is empty, {blocks_response}"
+
+        blocks_result = json.loads(blocks_response.raw.content.decode('utf-8'))
+        if not blocks_result.get("data") or not blocks_result["data"].get("items"):
+            logger.error(f"Blocks response is invalid, {blocks_result}")
+            return f"Blocks response is invalid, {blocks_result}"
+
+        # Log the full blocks structure for debugging
+        logger.debug(f"Full blocks structure: {json.dumps(blocks_result, indent=2)}")
+
+        # Find the first block with block_type === 2
+        content_block = None
+        for block in blocks_result["data"]["items"]:
+            logger.debug(f"Checking block: {json.dumps(block, indent=2)}")
+            if block.get("block_type") == 2:
+                content_block = block
+                logger.info(f"Found content block: {json.dumps(block, indent=2)}")
+                break
+
+        if not content_block:
+            logger.error(f"No content block (block_type === 2) found in document {doc_id}")
+            logger.error(f"Available block types: {[block.get('block_type') for block in blocks_result['data']['items']]}")
+            return f"No content block found in document {doc_id}"
+
+        # Step 4: Create document blocks
+        if content:
+            try:
+                logger.info(f"Creating document blocks for document {doc_id}")
+                blocks = _convert_markdown_to_blocks(content)
+                
+                for block in blocks:
+                    create_block_request: lark.BaseRequest = lark.BaseRequest.builder() \
+                        .http_method(lark.HttpMethod.POST) \
+                        .uri(f"/open-apis/docx/v1/documents/{doc_id}/blocks") \
+                        .token_types({lark.AccessTokenType.USER}) \
+                        .body({
+                            "block": block
+                        }) \
+                        .build()
+
+                    create_block_response: lark.BaseResponse = larkClient.request(create_block_request, option)
+
+                    if not create_block_response.success():
+                        logger.error(f"Failed to create block: code {create_block_response.code}, message: {create_block_response.msg}")
+                        return f"Failed to create block: code {create_block_response.code}, message: {create_block_response.msg}"
+
+                logger.info(f"Successfully created document blocks for document {doc_id}")
+
+            except Exception as e:
+                logger.error(f"Failed to create document blocks: {str(e)}", exc_info=True)
+                return f"Failed to create document blocks: {str(e)}"
+
+        # Format response
+        result = {
+            "document_id": doc_id,
+            "title": title,
+            "url": f"https://docs.feishu.cn/docx/{doc_id}"
+        }
+        
+        logger.info(f"Successfully completed document creation process for {title}")
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.error(f"Failed to create document: {str(e)}", exc_info=True)
+        return f"Failed to create document: {str(e)}"
