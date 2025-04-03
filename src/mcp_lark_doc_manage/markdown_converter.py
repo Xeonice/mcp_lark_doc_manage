@@ -58,155 +58,33 @@ def create_block_style(align: int = 1, folded: bool = False) -> OrderedDict:
     ])
 
 def process_link_node(link_node):
-    """Process link node and generate corresponding text run element.
-
-    Args:
-        link_node: Link node in Markdown AST
-
-    Returns:
-        OrderedDict: Text run element containing the link
-    """
-    # Extract link text and URL
+    """Process link node and generate corresponding text run element."""
     link_text = ''.join([link_child['raw'] for link_child in link_node['children']])
     url = link_node['attrs']['url']
-    
-    # Create text run element for the link
-    text_run = OrderedDict([
-        ('text_run', OrderedDict([
-            ('content', link_text),
-            ('text_element_style', OrderedDict([
-                ('bold', False),
-                ('inline_code', False),
-                ('italic', False),
-                ('link', OrderedDict([
-                    ('url', urllib.parse.quote(url, safe=''))
-                ])),
-                ('strikethrough', False),
-                ('underline', False)
-            ]))
-        ]))
-    ])
-
-    return text_run
+    return create_text_run(link_text, create_text_element_style(link=url))
 
 def process_text_node(text_node):
-    """Process text node and generate corresponding text run element.
-
-    Args:
-        text_node: Text node in Markdown AST
-
-    Returns:
-        OrderedDict: Text run element containing plain text
-    """
-    text_run = OrderedDict([
-        ('text_run', OrderedDict([
-            ('content', text_node['raw']),
-            ('text_element_style', OrderedDict([
-                ('bold', False),
-                ('inline_code', False),
-                ('italic', False),
-                ('strikethrough', False),
-                ('underline', False)
-            ]))
-        ]))
-    ])
-    return text_run
+    """Process text node and generate corresponding text run element."""
+    return create_text_run(text_node['raw'])
 
 def process_strong_node(strong_node):
-    """Process bold text node and generate corresponding text run element.
-
-    Args:
-        strong_node: Bold node in Markdown AST
-
-    Returns:
-        OrderedDict: Text run element containing bold text
-    """
+    """Process bold text node and generate corresponding text run element."""
     strong_text = ''.join([strong_child['raw'] for strong_child in strong_node['children']])
-    text_run = OrderedDict([
-        ('text_run', OrderedDict([
-            ('content', strong_text),
-            ('text_element_style', OrderedDict([
-                ('bold', True),
-                ('inline_code', False),
-                ('italic', False),
-                ('strikethrough', False),
-                ('underline', False)
-            ]))
-        ]))
-    ])
-    return text_run
+    return create_text_run(strong_text, create_text_element_style(bold=True))
 
 def process_emphasis_node(emphasis_node):
-    """Process italic text node and generate corresponding text run element.
-    
-    Args:
-        emphasis_node: Italic node in Markdown AST
-        
-    Returns:
-        OrderedDict: Text run element containing italic text
-    """
+    """Process italic text node and generate corresponding text run element."""
     emphasis_text = ''.join([em_child['raw'] for em_child in emphasis_node['children']])
-    text_run = OrderedDict([
-        ('text_run', OrderedDict([
-            ('content', emphasis_text),
-            ('text_element_style', OrderedDict([
-                ('bold', False),
-                ('inline_code', False),
-                ('italic', True),
-                ('strikethrough', False),
-                ('underline', False)
-            ]))
-            ]))
-        ])
-    return text_run
+    return create_text_run(emphasis_text, create_text_element_style(italic=True))
 
 def process_codespan_node(codespan_node):
-    """Process inline code node and generate corresponding text run element.
-    
-    Args:
-        codespan_node: Inline code node in Markdown AST
-        
-    Returns:
-        OrderedDict: Text run element containing inline code
-    """
-
-    text_run = OrderedDict([
-        ('text_run', OrderedDict([
-            ('content', codespan_node['raw']),
-            ('text_element_style', OrderedDict([
-                ('bold', False),
-                ('inline_code', True),
-                ('italic', False),
-                ('strikethrough', False),
-                ('underline', False)
-            ]))
-        ]))
-    ])
-    return text_run
+    """Process inline code node and generate corresponding text run element."""
+    return create_text_run(codespan_node['raw'], create_text_element_style(inline_code=True))
 
 def process_del_node(del_node):
-    """Process strikethrough text node and generate corresponding text run element.
-    
-    Args:
-        del_node: Strikethrough node in Markdown AST
-        
-    Returns:
-        OrderedDict: Text run element containing strikethrough text
-    """
+    """Process strikethrough text node and generate corresponding text run element."""
     del_text = ''.join([del_child['raw'] for del_child in del_node['children']])
-    text_run = OrderedDict([
-        ('text_run', OrderedDict([
-            ('content', del_text),
-            ('text_element_style', OrderedDict([
-                ('bold', False),
-                ('inline_code', False),
-                ('italic', False),
-                ('strikethrough', True),
-                ('underline', False)
-            ]))
-        ]))
-    ])
-    return text_run
+    return create_text_run(del_text, create_text_element_style(strikethrough=True))
 
 def create_empty_text_block(block_id):
     """Create an empty text block.

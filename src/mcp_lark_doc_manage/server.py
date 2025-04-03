@@ -16,6 +16,8 @@ from aiohttp import web
 import secrets
 from urllib.parse import quote
 import logging
+from mcp_lark_doc_manage.markdown_converter import convert_markdown_to_blocks
+from mcp.types import CallToolResult, TextContent
 
 # Configure logging
 logging.basicConfig(
@@ -28,14 +30,14 @@ logger = logging.getLogger(__name__)
 # Add global variables below imports
 LARK_APP_ID = os.getenv("LARK_APP_ID", "")
 LARK_APP_SECRET = os.getenv("LARK_APP_SECRET", "")
-OAUTH_HOST = os.getenv("OAUTH_HOST", "localhost")  # 添加 OAuth 主机配置
-OAUTH_PORT = int(os.getenv("OAUTH_PORT", "9997"))  # 添加 OAuth 端口配置
+OAUTH_HOST = os.getenv("OAUTH_HOST", "localhost")  # OAuth host configuration
+OAUTH_PORT = int(os.getenv("OAUTH_PORT", "9997"))  # OAuth port configuration
 REDIRECT_URI = f"http://{OAUTH_HOST}:{OAUTH_PORT}/oauth/callback"
-USER_ACCESS_TOKEN = None  # Add global variable
-TOKEN_EXPIRES_AT = None  # 添加过期时间存储
+USER_ACCESS_TOKEN = None  # Global variable for user access token
+TOKEN_EXPIRES_AT = None  # Token expiration timestamp
 FEISHU_AUTHORIZE_URL = "https://accounts.feishu.cn/open-apis/authen/v1/authorize"
-FOLDER_TOKEN = os.getenv("FOLDER_TOKEN", "")  # 添加全局文件夹 token
-token_lock = asyncio.Lock()  # Add token lock
+FOLDER_TOKEN = os.getenv("FOLDER_TOKEN", "")  # Global folder token
+token_lock = asyncio.Lock()  # Token lock for thread safety
 
 # Validate required environment variables
 if not LARK_APP_ID or not LARK_APP_SECRET:
@@ -63,128 +65,182 @@ except Exception as e:
     raise
 
 @mcp.tool()
-async def get_lark_doc_content(documentUrl: str) -> str:
+async def get_lark_doc_content(documentUrl: str) -> CallToolResult:
     """Get Lark document content
     
     Args:
         documentUrl: Lark document URL
     """
-    if not larkClient or not larkClient.auth or not larkClient.docx or not larkClient.wiki:
-        return "Lark client not properly initialized"
+    try:
+        if not larkClient or not larkClient.auth or not larkClient.docx or not larkClient.wiki:
+            return CallToolResult(
+                isError=True,
+                content=[TextContent(type="text", text="Lark client not properly initialized")]
+            )
+                    
+        async with token_lock:
+            current_token = USER_ACCESS_TOKEN
+        if not current_token or await _check_token_expired():
+            try:
+                current_token = await _auth_flow()
+            except Exception as e:
+                return CallToolResult(
+                    isError=True,
+                    content=[TextContent(type="text", text=f"Failed to get user access token: {str(e)}")]
+                )
+
+        # 1. Extract document ID
+        docMatch = re.search(r'/(?:docx|wiki)/([A-Za-z0-9]+)', documentUrl)
+        if not docMatch:
+            return CallToolResult(
+                isError=True,
+                content=[TextContent(type="text", text="Invalid Lark document URL format")]
+            )
+
+        docID = docMatch.group(1)
+        isWiki = '/wiki/' in documentUrl
+        
+        option = lark.RequestOption.builder().user_access_token(current_token).build()
+
+        # 3. For wiki documents, need to make an additional request to get the actual docID
+        if isWiki:
+            # Construct request object
+            wikiRequest: GetNodeSpaceRequest = GetNodeSpaceRequest.builder() \
+                .token(docID) \
+                .obj_type("wiki") \
+                .build()
+            wikiResponse: GetNodeSpaceResponse = larkClient.wiki.v2.space.get_node(wikiRequest, option)    
+            if not wikiResponse.success():
+                return CallToolResult(
+                    isError=True,
+                    content=[TextContent(type="text", text=f"Failed to get wiki document real ID: code {wikiResponse.code}, message: {wikiResponse.msg}")]
+                )
                 
-    async with token_lock:
-        current_token = USER_ACCESS_TOKEN
-    if not current_token or await _check_token_expired():
-        try:
-            current_token = await _auth_flow()
-        except Exception as e:
-            return f"Failed to get user access token: {str(e)}"
+            if not wikiResponse.data or not wikiResponse.data.node or not wikiResponse.data.node.obj_token:
+                return CallToolResult(
+                    isError=True,
+                    content=[TextContent(type="text", text=f"Failed to get wiki document node info, response: {wikiResponse.data}")]
+                )
+            docID = wikiResponse.data.node.obj_token    
 
-    # 1. Extract document ID
-    docMatch = re.search(r'/(?:docx|wiki)/([A-Za-z0-9]+)', documentUrl)
-    if not docMatch:
-        return "Invalid Lark document URL format"
-
-    docID = docMatch.group(1)
-    isWiki = '/wiki/' in documentUrl
-    
-    option = lark.RequestOption.builder().user_access_token(current_token).build()
-
-    # 3. For wiki documents, need to make an additional request to get the actual docID
-    if isWiki:
-        # Construct request object
-        wikiRequest: GetNodeSpaceRequest = GetNodeSpaceRequest.builder() \
-            .token(docID) \
-            .obj_type("wiki") \
+        # 4. Get actual document content
+        contentRequest: RawContentDocumentRequest = RawContentDocumentRequest.builder() \
+            .document_id(docID) \
+            .lang(0) \
             .build()
-        wikiResponse: GetNodeSpaceResponse = larkClient.wiki.v2.space.get_node(wikiRequest, option)    
-        if not wikiResponse.success():
-            return f"Failed to get wiki document real ID: code {wikiResponse.code}, message: {wikiResponse.msg}"
             
-        if not wikiResponse.data or not wikiResponse.data.node or not wikiResponse.data.node.obj_token:
-            return f"Failed to get wiki document node info, response: {wikiResponse.data}"
-        docID = wikiResponse.data.node.obj_token    
+        contentResponse: RawContentDocumentResponse = larkClient.docx.v1.document.raw_content(contentRequest, option)
 
-    # 4. Get actual document content
-    contentRequest: RawContentDocumentRequest = RawContentDocumentRequest.builder() \
-        .document_id(docID) \
-        .lang(0) \
-        .build()
-        
-    contentResponse: RawContentDocumentResponse = larkClient.docx.v1.document.raw_content(contentRequest, option)
-
-    if not contentResponse.success():
-        return f"Failed to get document content: code {contentResponse.code}, message: {contentResponse.msg}"
- 
-    if not contentResponse.data or not contentResponse.data.content:
-        return f"Document content is empty, {contentResponse}"
-        
-    return contentResponse.data.content  # Ensure return string type
+        if not contentResponse.success():
+            return CallToolResult(
+                isError=True,
+                content=[TextContent(type="text", text=f"Failed to get document content: code {contentResponse.code}, message: {contentResponse.msg}")]
+            )
+     
+        if not contentResponse.data or not contentResponse.data.content:
+            return CallToolResult(
+                isError=True,
+                content=[TextContent(type="text", text=f"Document content is empty, {contentResponse}")]
+            )
+            
+        return CallToolResult(
+            content=[TextContent(type="text", text=contentResponse.data.content)]
+        )
+    except Exception as e:
+        return CallToolResult(
+            isError=True,
+            content=[TextContent(type="text", text=f"Error getting document content: {str(e)}")]
+        )
 
 
 @mcp.tool()
-async def search_wiki(query: str, page_size: int = 10) -> str:
+async def search_wiki(query: str, page_size: int = 10) -> CallToolResult:
     """Search Lark Wiki
     
     Args:
         query: Search keywords
         page_size: Number of results to return (default: 10)
     """
-    if not larkClient or not larkClient.auth or not larkClient.wiki:
-        return "Lark client not properly initialized"
-
-    # Check if user token exists
-    async with token_lock:
-        current_token = USER_ACCESS_TOKEN
-
-    # Check token existence and expiration
-    if not current_token or await _check_token_expired():
-        try:
-            current_token = await _auth_flow()
-        except Exception as e:
-            return f"Failed to get user access token: {str(e)}"
-
-    # Construct search request using raw API mode
-    request: lark.BaseRequest = lark.BaseRequest.builder() \
-        .http_method(lark.HttpMethod.POST) \
-        .uri("/open-apis/wiki/v1/nodes/search") \
-        .token_types({lark.AccessTokenType.USER}) \
-        .body({
-            "page_size": page_size,
-            "query": query
-        }) \
-        .build()
-
-    option = lark.RequestOption.builder().user_access_token(current_token).build()
-    
-    # Send search request
-    response: lark.BaseResponse = larkClient.request(request, option)
-
-    if not response.success():
-        return f"Failed to search wiki: code {response.code}, message: {response.msg}"
-
-    if not response.raw or not response.raw.content:
-        return f"Search response content is empty, {response}"
-
-    # Parse response content
     try:
-        result = json.loads(response.raw.content.decode('utf-8'))
-        if not result.get("data") or not result["data"].get("items"):
-            return "No results found"
+        if not larkClient or not larkClient.auth or not larkClient.wiki:
+            return CallToolResult(
+                isError=True,
+                content=[TextContent(type="text", text="Lark client not properly initialized")]
+            )
+
+        # Check if user token exists
+        async with token_lock:
+            current_token = USER_ACCESS_TOKEN
+
+        # Check token existence and expiration
+        if not current_token or await _check_token_expired():
+            try:
+                current_token = await _auth_flow()
+            except Exception as e:
+                return CallToolResult(
+                    isError=True,
+                    content=[TextContent(type="text", text=f"Failed to get user access token: {str(e)}")]
+                )
+
+        # Construct search request using raw API mode
+        request: lark.BaseRequest = lark.BaseRequest.builder() \
+            .http_method(lark.HttpMethod.POST) \
+            .uri("/open-apis/wiki/v1/nodes/search") \
+            .token_types({lark.AccessTokenType.USER}) \
+            .body({
+                "page_size": page_size,
+                "query": query
+            }) \
+            .build()
+
+        option = lark.RequestOption.builder().user_access_token(current_token).build()
         
-        # Format search results
-        results = []
-        for item in result["data"]["items"]:
-            results.append({
-                "title": item.get("title"),
-                "url": item.get("url"),
-                "create_time": item.get("create_time"),
-                "update_time": item.get("update_time")
-            })
-        
-        return json.dumps(results, ensure_ascii=False, indent=2)
+        # Send search request
+        response: lark.BaseResponse = larkClient.request(request, option)
+
+        if not response.success():
+            return CallToolResult(
+                isError=True,
+                content=[TextContent(type="text", text=f"Failed to search wiki: code {response.code}, message: {response.msg}")]
+            )
+
+        if not response.raw or not response.raw.content:
+            return CallToolResult(
+                isError=True,
+                content=[TextContent(type="text", text=f"Search response content is empty, {response}")]
+            )
+
+        # Parse response content
+        try:
+            result = json.loads(response.raw.content.decode('utf-8'))
+            if not result.get("data") or not result["data"].get("items"):
+                return CallToolResult(
+                    content=[TextContent(type="text", text="No results found")]
+                )
+            
+            # Format search results
+            results = []
+            for item in result["data"]["items"]:
+                results.append({
+                    "title": item.get("title"),
+                    "url": item.get("url"),
+                    "create_time": item.get("create_time"),
+                    "update_time": item.get("update_time")
+                })
+            
+            return CallToolResult(
+                content=[TextContent(type="text", text=json.dumps(results, ensure_ascii=False, indent=2))]
+            )
+        except Exception as e:
+            return CallToolResult(
+                isError=True,
+                content=[TextContent(type="text", text=f"Failed to parse search results: {str(e)}")]
+            )
     except Exception as e:
-        return f"Failed to parse search results: {str(e)}"
+        return CallToolResult(
+            isError=True,
+            content=[TextContent(type="text", text=f"Error searching wiki: {str(e)}")]
+        )
     
 
 
@@ -331,319 +387,276 @@ async def get_folder_token() -> str:
     # 比如从 API 获取根目录或特定目录的 token
     return FOLDER_TOKEN
 @mcp.tool()
-async def list_folder_content(page_size: int = 10) -> str:
+async def list_folder_content(page_size: int = 10) -> CallToolResult:
     """List contents of a Lark folder
     
     Args:
         page_size: Number of results to return (default: 10)
     """
-    if not larkClient or not larkClient.auth:
-        return "Lark client not properly initialized"
-
-    # Check if user token exists
-    async with token_lock:
-        current_token = USER_ACCESS_TOKEN
-
-    # Check token existence and expiration
-    if not current_token or await _check_token_expired():
-        try:
-            current_token = await _auth_flow()
-        except Exception as e:
-            return f"Failed to get user access token: {str(e)}"
-            
-    # Get folder token
-    folder_token = await get_folder_token()
-    if not folder_token:
-        return "Folder token not configured"
-
-    # Construct file list request using SDK
-    request: lark.BaseRequest = lark.BaseRequest.builder() \
-        .http_method(lark.HttpMethod.GET) \
-        .uri("/open-apis/drive/v1/files") \
-        .token_types({lark.AccessTokenType.USER}) \
-        .queries([("folder_token", folder_token), ("page_size", page_size)]) \
-        .build()
-
-    option = lark.RequestOption.builder().user_access_token(current_token).build()
-    
-    # Send list request
-    response: lark.BaseResponse = larkClient.request(request, option)
-
-    if not response.success():
-        return f"Failed to list files: code {response.code}, message: {response.msg}"
-
-    # Parse response content
     try:
-        result = json.loads(response.raw.content.decode('utf-8'))
-        if not result.get("data") or not result["data"].get("files"):
-            return "No files found in folder"
-        
-        # Format file contents
-        items = []
-        for item in result["data"]["files"]:
-            items.append({
-                "name": item.get("name"),
-                "type": item.get("type"),  # "doc"/"sheet"/"file" etc
-                "token": item.get("token"),
-                "url": item.get("url"),
-                "created_time": item.get("created_time"),
-                "modified_time": item.get("modified_time"),
-                "owner_id": item.get("owner_id"),
-                "parent_token": item.get("parent_token")
-            })
-        
-        return json.dumps(items, ensure_ascii=False, indent=2)
-    except Exception as e:
-        return f"Failed to parse file contents: {str(e)}"
+        if not larkClient or not larkClient.auth:
+            return CallToolResult(
+                isError=True,
+                content=[TextContent(type="text", text="Lark client not properly initialized")]
+            )
 
-def _convert_markdown_to_blocks(markdown_content: str) -> list:
-    """Convert markdown content to Feishu document blocks
-    
-    Args:
-        markdown_content: Markdown content to convert
+        # Check if user token exists
+        async with token_lock:
+            current_token = USER_ACCESS_TOKEN
+
+        # Check token existence and expiration
+        if not current_token or await _check_token_expired():
+            try:
+                current_token = await _auth_flow()
+            except Exception as e:
+                return CallToolResult(
+                    isError=True,
+                    content=[TextContent(type="text", text=f"Failed to get user access token: {str(e)}")]
+                )
+                
+        # Get folder token
+        folder_token = await get_folder_token()
+        if not folder_token:
+            return CallToolResult(
+                isError=True,
+                content=[TextContent(type="text", text="Folder token not configured")]
+            )
+
+        # Construct file list request using SDK
+        request: lark.BaseRequest = lark.BaseRequest.builder() \
+            .http_method(lark.HttpMethod.GET) \
+            .uri("/open-apis/drive/v1/files") \
+            .token_types({lark.AccessTokenType.USER}) \
+            .queries([("folder_token", folder_token), ("page_size", page_size)]) \
+            .build()
+
+        option = lark.RequestOption.builder().user_access_token(current_token).build()
         
-    Returns:
-        List of document blocks
-    """
-    blocks = []
-    lines = markdown_content.split('\n')
-    current_block = None
-    
-    for line in lines:
-        # Skip empty lines
-        if not line.strip():
-            continue
+        # Send list request
+        response: lark.BaseResponse = larkClient.request(request, option)
+
+        if not response.success():
+            return CallToolResult(
+                isError=True,
+                content=[TextContent(type="text", text=f"Failed to list files: code {response.code}, message: {response.msg}")]
+            )
+
+        # Parse response content
+        try:
+            result = json.loads(response.raw.content.decode('utf-8'))
+            if not result.get("data") or not result["data"].get("files"):
+                return CallToolResult(
+                    content=[TextContent(type="text", text="No files found in folder")]
+                )
             
-        # Handle headings
-        if line.startswith('#'):
-            level = len(re.match('^#+', line).group())
-            text = line.lstrip('#').strip()
-            blocks.append({
-                "block_type": 1,  # Heading block
-                "heading": {
-                    "elements": [{
-                        "text_run": {
-                            "content": text,
-                            "text_element_style": {
-                                "bold": True,
-                                "inline_code": False,
-                                "italic": False,
-                                "strikethrough": False,
-                                "underline": False
-                            }
-                        }
-                    }],
-                    "style": {
-                        "heading_level": level
-                    }
-                }
-            })
-            continue
+            # Format file contents
+            items = []
+            for item in result["data"]["files"]:
+                items.append({
+                    "name": item.get("name"),
+                    "type": item.get("type"),  # "doc"/"sheet"/"file" etc
+                    "token": item.get("token"),
+                    "url": item.get("url"),
+                    "created_time": item.get("created_time"),
+                    "modified_time": item.get("modified_time"),
+                    "owner_id": item.get("owner_id"),
+                    "parent_token": item.get("parent_token")
+                })
             
-        # Handle paragraphs
-        if not current_block:
-            current_block = {
-                "block_type": 2,  # Text block
-                "text": {
-                    "elements": [],
-                    "style": {
-                        "align": 1
-                    }
-                }
-            }
-            
-        # Add text element to current block
-        current_block["text"]["elements"].append({
-            "text_run": {
-                "content": line,
-                "text_element_style": {
-                    "bold": False,
-                    "inline_code": False,
-                    "italic": False,
-                    "strikethrough": False,
-                    "underline": False
-                }
-            }
-        })
-        
-        # End current block if it's a complete paragraph
-        if line.endswith(('.', '!', '?')):
-            blocks.append(current_block)
-            current_block = None
-            
-    # Add any remaining block
-    if current_block:
-        blocks.append(current_block)
-        
-    return blocks
+            return CallToolResult(
+                content=[TextContent(type="text", text=json.dumps(items, ensure_ascii=False, indent=2))]
+            )
+        except Exception as e:
+            return CallToolResult(
+                isError=True,
+                content=[TextContent(type="text", text=f"Failed to parse file contents: {str(e)}")]
+            )
+    except Exception as e:
+        return CallToolResult(
+            isError=True,
+            content=[TextContent(type="text", text=f"Error listing folder content: {str(e)}")]
+        )
 
 @mcp.tool()
-async def create_doc(title: str, content: str = "", target_space_id: str = None) -> str:
-    """Create a new Lark document and optionally move it to a specified wiki space
+async def create_doc(title: str, content: str = "", target_space_id: str = None) -> CallToolResult:
+    """Create a new Lark document and optionally move it to a specified wiki space4712478312748178842371
     
     Args:
         title: Document title
         content: Document content (optional)
         target_space_id: Target wiki space ID to move the document to (optional)
     """
-    if not larkClient or not larkClient.auth or not larkClient.docx:
-        logger.error("Lark client not properly initialized")
-        return "Lark client not properly initialized"
-                
-    async with token_lock:
-        current_token = USER_ACCESS_TOKEN
-    if not current_token or await _check_token_expired():
-        try:
-            logger.info("Token expired or not found, starting auth flow")
-            current_token = await _auth_flow()
-            logger.info("Successfully obtained new token")
-        except Exception as e:
-            logger.error(f"Failed to get user access token: {str(e)}", exc_info=True)
-            return f"Failed to get user access token: {str(e)}"
-
-    # Get folder token
-    folder_token = await get_folder_token()
-    if not folder_token:
-        logger.error("Folder token not configured")
-        return "Folder token not configured"
-
     try:
-        # Step 1: Create document
-        logger.info(f"Creating document with title: {title}")
-        create_request: lark.BaseRequest = lark.BaseRequest.builder() \
-            .http_method(lark.HttpMethod.POST) \
-            .uri("/open-apis/docx/v1/documents") \
-            .token_types({lark.AccessTokenType.USER}) \
-            .body({
-                "folder_token": folder_token,
-                "title": title
-            }) \
-            .build()
-
-        option = lark.RequestOption.builder().user_access_token(current_token).build()
-
-        # Send create document request
-        create_response: lark.BaseResponse = larkClient.request(create_request, option)
-
-        if not create_response.success():
-            logger.error(f"Failed to create document: code {create_response.code}, message: {create_response.msg}")
-            return f"Failed to create document: code {create_response.code}, message: {create_response.msg}"
-
-        if not create_response.raw or not create_response.raw.content:
-            logger.error(f"Document creation response is empty, {create_response}")
-            return f"Document creation response is empty, {create_response}"
-
-        create_result = json.loads(create_response.raw.content.decode('utf-8'))
-        if not create_result.get("data") or not create_result["data"].get("document"):
-            logger.error(f"Document creation response is invalid, {create_result}")
-            return f"Document creation response is invalid, {create_result}"
-
-        doc_id = create_result["data"]["document"]["document_id"]
-        logger.info(f"Successfully created document with ID: {doc_id}")
-
-        # Step 2: Move document to wiki space if target_space_id is provided
-        if target_space_id:
+        if not larkClient or not larkClient.auth or not larkClient.docx:
+            logger.error("Lark client not properly initialized")
+            return CallToolResult(
+                isError=True,
+                content=[TextContent(type="text", text="Lark client not properly initialized")]
+            )
+                    
+        async with token_lock:
+            current_token = USER_ACCESS_TOKEN
+        if not current_token or await _check_token_expired():
             try:
-                logger.info(f"Moving document {doc_id} to wiki space {target_space_id}")
-                move_request: lark.BaseRequest = lark.BaseRequest.builder() \
-                    .http_method(lark.HttpMethod.POST) \
-                    .uri("/open-apis/wiki/v2/space-node/move") \
-                    .token_types({lark.AccessTokenType.USER}) \
-                    .body({
-                        "space_id": target_space_id,
-                        "node_token": doc_id
-                    }) \
-                    .build()
-
-                move_response: lark.BaseResponse = larkClient.request(move_request, option)
-
-                if not move_response.success():
-                    logger.error(f"Failed to move document: code {move_response.code}, message: {move_response.msg}")
-                    return f"Failed to move document: code {move_response.code}, message: {move_response.msg}"
-
-                logger.info(f"Successfully moved document {doc_id} to wiki space {target_space_id}")
-
+                logger.info("Token expired or not found, starting auth flow")
+                current_token = await _auth_flow()
+                logger.info("Successfully obtained new token")
             except Exception as e:
-                logger.error(f"Failed to move document to wiki space: {str(e)}", exc_info=True)
-                return f"Failed to move document to wiki space: {str(e)}"
+                logger.error(f"Failed to get user access token: {str(e)}", exc_info=True)
+                return CallToolResult(
+                    isError=True,
+                    content=[TextContent(type="text", text=f"Failed to get user access token: {str(e)}")]
+                )
 
-        # Step 3: Get document blocks
-        logger.info(f"Getting blocks for document {doc_id}")
-        blocks_request: lark.BaseRequest = lark.BaseRequest.builder() \
-            .http_method(lark.HttpMethod.GET) \
-            .uri(f"/open-apis/docx/v1/documents/{doc_id}/blocks") \
-            .token_types({lark.AccessTokenType.USER}) \
-            .build()
+        # Get folder token
+        folder_token = await get_folder_token()
+        if not folder_token:
+            logger.error("Folder token not configured")
+            return CallToolResult(
+                isError=True,
+                content=[TextContent(type="text", text="Folder token not configured")]
+            )
 
-        blocks_response: lark.BaseResponse = larkClient.request(blocks_request, option)
+        try:
+            # Step 1: Create document
+            logger.info(f"Creating document with title: {title}")
+            create_request: lark.BaseRequest = lark.BaseRequest.builder() \
+                .http_method(lark.HttpMethod.POST) \
+                .uri("/open-apis/docx/v1/documents") \
+                .token_types({lark.AccessTokenType.USER}) \
+                .body({
+                    "folder_token": folder_token,
+                    "title": title
+                }) \
+                .build()
 
-        if not blocks_response.success():
-            logger.error(f"Failed to get document blocks: code {blocks_response.code}, message: {blocks_response.msg}")
-            return f"Failed to get document blocks: code {blocks_response.code}, message: {blocks_response.msg}"
+            option = lark.RequestOption.builder().user_access_token(current_token).build()
 
-        if not blocks_response.raw or not blocks_response.raw.content:
-            logger.error(f"Blocks response is empty, {blocks_response}")
-            return f"Blocks response is empty, {blocks_response}"
+            # Send create document request
+            create_response: lark.BaseResponse = larkClient.request(create_request, option)
 
-        blocks_result = json.loads(blocks_response.raw.content.decode('utf-8'))
-        if not blocks_result.get("data") or not blocks_result["data"].get("items"):
-            logger.error(f"Blocks response is invalid, {blocks_result}")
-            return f"Blocks response is invalid, {blocks_result}"
+            if not create_response.success():
+                logger.error(f"Failed to create document: code {create_response.code}, message: {create_response.msg}")
+                return CallToolResult(
+                    isError=True,
+                    content=[TextContent(type="text", text=f"Failed to create document: code {create_response.code}, message: {create_response.msg}")]
+                )
 
-        # Log the full blocks structure for debugging
-        logger.debug(f"Full blocks structure: {json.dumps(blocks_result, indent=2)}")
+            if not create_response.raw or not create_response.raw.content:
+                logger.error(f"Document creation response is empty, {create_response}")
+                return CallToolResult(
+                    isError=True,
+                    content=[TextContent(type="text", text=f"Document creation response is empty, {create_response}")]
+                )
 
-        # Find the first block with block_type === 2
-        content_block = None
-        for block in blocks_result["data"]["items"]:
-            logger.debug(f"Checking block: {json.dumps(block, indent=2)}")
-            if block.get("block_type") == 2:
-                content_block = block
-                logger.info(f"Found content block: {json.dumps(block, indent=2)}")
-                break
+            create_result = json.loads(create_response.raw.content.decode('utf-8'))
+            if not create_result.get("data") or not create_result["data"].get("document"):
+                logger.error(f"Document creation response is invalid, {create_result}")
+                return CallToolResult(
+                    isError=True,
+                    content=[TextContent(type="text", text=f"Document creation response is invalid, {create_result}")]
+                )
 
-        if not content_block:
-            logger.error(f"No content block (block_type === 2) found in document {doc_id}")
-            logger.error(f"Available block types: {[block.get('block_type') for block in blocks_result['data']['items']]}")
-            return f"No content block found in document {doc_id}"
+            doc_id = create_result["data"]["document"]["document_id"]
+            logger.info(f"Successfully created document with ID: {doc_id}")
 
-        # Step 4: Create document blocks
-        if content:
-            try:
-                logger.info(f"Creating document blocks for document {doc_id}")
-                blocks = _convert_markdown_to_blocks(content)
-                
-                for block in blocks:
-                    create_block_request: lark.BaseRequest = lark.BaseRequest.builder() \
+            # Step 2: Move document to wiki space if target_space_id is provided
+            if target_space_id:
+                try:
+                    logger.info(f"Moving document {doc_id} to wiki space {target_space_id}")
+                    move_request: lark.BaseRequest = lark.BaseRequest.builder() \
                         .http_method(lark.HttpMethod.POST) \
-                        .uri(f"/open-apis/docx/v1/documents/{doc_id}/blocks") \
+                        .uri("/open-apis/wiki/v2/space-node/move") \
                         .token_types({lark.AccessTokenType.USER}) \
                         .body({
-                            "block": block
+                            "space_id": target_space_id,
+                            "node_token": doc_id
                         }) \
                         .build()
 
-                    create_block_response: lark.BaseResponse = larkClient.request(create_block_request, option)
+                    move_response: lark.BaseResponse = larkClient.request(move_request, option)
 
-                    if not create_block_response.success():
-                        logger.error(f"Failed to create block: code {create_block_response.code}, message: {create_block_response.msg}")
-                        return f"Failed to create block: code {create_block_response.code}, message: {create_block_response.msg}"
+                    if not move_response.success():
+                        logger.error(f"Failed to move document: code {move_response.code}, message: {move_response.msg}")
+                        return CallToolResult(
+                            isError=True,
+                            content=[TextContent(type="text", text=f"Failed to move document: code {move_response.code}, message: {move_response.msg}")]
+                        )
 
-                logger.info(f"Successfully created document blocks for document {doc_id}")
+                    logger.info(f"Successfully moved document {doc_id} to wiki space {target_space_id}")
 
-            except Exception as e:
-                logger.error(f"Failed to create document blocks: {str(e)}", exc_info=True)
-                return f"Failed to create document blocks: {str(e)}"
+                except Exception as e:
+                    logger.error(f"Failed to move document to wiki space: {str(e)}", exc_info=True)
+                    return CallToolResult(
+                        isError=True,
+                        content=[TextContent(type="text", text=f"Failed to move document to wiki space: {str(e)}")]
+                    )
 
-        # Format response
-        result = {
-            "document_id": doc_id,
-            "title": title,
-            "url": f"https://docs.feishu.cn/docx/{doc_id}"
-        }
-        
-        logger.info(f"Successfully completed document creation process for {title}")
-        return json.dumps(result, ensure_ascii=False, indent=2)
+            # Step 3: Create document blocks
+            if content:
+                try:
+                    logger.info(f"Creating document blocks for document {doc_id}")
+                    blocks_data = convert_markdown_to_blocks(content)
+                    
+                    # Extract the descendants list that contains all the blocks to create
+                    if not isinstance(blocks_data, dict) or 'descendants' not in blocks_data:
+                        logger.error(f"Invalid blocks structure: {blocks_data}")
+                        return CallToolResult(
+                            isError=True,
+                            content=[TextContent(type="text", text=f"Invalid blocks structure returned from markdown converter")]
+                        )
+                    
+                    # Use the document-block-descendant/create API to create blocks in one request
+                    create_blocks_request: lark.BaseRequest = lark.BaseRequest.builder() \
+                        .http_method(lark.HttpMethod.POST) \
+                        .uri(f"/open-apis/docx/v1/documents/{doc_id}/blocks/{doc_id}/descendant") \
+                        .queries([("document_revision_id", "-1")]) \
+                        .token_types({lark.AccessTokenType.USER}) \
+                        .body({
+                            "index": 0,  # Insert at the beginning of the block
+                            "children_id": blocks_data.get('children_id', []),
+                            "descendants": blocks_data['descendants']
+                        }) \
+                        .build()
+
+                    create_blocks_response: lark.BaseResponse = larkClient.request(create_blocks_request, option)
+
+                    if not create_blocks_response.success():
+                        logger.error(f"Failed to create blocks: code {create_blocks_response.code}, message: {create_blocks_response.msg}, create_blocks_response: {create_blocks_response}")
+                        return CallToolResult(
+                            isError=True,
+                            content=[TextContent(type="text", text=f"Failed to create blocks: code {create_blocks_response.code}, message: {create_blocks_response.msg}, create_blocks_response: {create_blocks_response}")]
+                        )
+
+                    logger.info(f"Successfully created document blocks for document {doc_id}")
+
+                except Exception as e:
+                    logger.error(f"Failed to create document blocks: {str(e)}", exc_info=True)
+                    return CallToolResult(
+                        isError=True,
+                        content=[TextContent(type="text", text=f"Failed to create document blocks: {str(e)}")]
+                    )
+
+            # Format response
+            result = {
+                "document_id": doc_id,
+                "title": title,
+                "url": f"https://docs.feishu.cn/docx/{doc_id}"
+            }
+            
+            logger.info(f"Successfully completed document creation process for {title}")
+            return CallToolResult(
+                content=[TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
+            )
+        except Exception as e:
+            logger.error(f"Failed to create document: {str(e)}", exc_info=True)
+            return CallToolResult(
+                isError=True,
+                content=[TextContent(type="text", text=f"Failed to create document: {str(e)}")]
+            )
     except Exception as e:
-        logger.error(f"Failed to create document: {str(e)}", exc_info=True)
-        return f"Failed to create document: {str(e)}"
+        logger.error(f"Unexpected error in create_doc: {str(e)}", exc_info=True)
+        return CallToolResult(
+            isError=True,
+            content=[TextContent(type="text", text=f"Unexpected error in create_doc: {str(e)}")]
+        )
