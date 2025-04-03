@@ -4,7 +4,7 @@ version = "0.1.8"  # 更新版本号
 description = "A Model Context Protocol server for accessing Lark documents"
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [{ name = "T0UGH" }]
+authors = [{ name = "Xeonice" }]
 license = { text = "MIT" }
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -27,7 +27,10 @@ dev = [
     "ruff>=0.7.3",
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
-    "pytest-cov>=4.1.0"
+    "pytest-cov>=4.1.0",
+    "pytest-timeout>=2.1.0",
+    "black>=23.7.0",
+    "isort>=5.12.0",
 ]
 
 [project.scripts]
