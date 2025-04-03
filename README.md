@@ -75,8 +75,7 @@ To get a folder token:
 Note: Make sure your app has the `drive:drive:readonly` permission to access folders.
 
 ### Required Permissions
-```
-wiki:wiki:readonly   # Wiki read-only access
+```wiki:wiki:readonly   # Wiki read-only access
 wiki:node:read      # Wiki node read access
 docx:document:readonly   # Document read-only access
 search:docs:read    # Document search access
@@ -157,6 +156,21 @@ Note: Replace `/path/to/your/uvx` with your actual uvx path (e.g., `/Users/usern
      - create_time: Creation time
      - edit_time: Last edit time
      - owner_id: Owner ID
+
+4. create_doc
+   - Purpose: Create a new Lark document with content
+   - Args:
+     - title (string) - Document title
+     - content (string, optional) - Document content in Markdown format
+     - target_space_id (string, optional) - Target wiki space ID to move the document to
+   - Returns: JSON string containing:
+     - document_id: Created document ID
+     - title: Document title
+     - url: Document URL
+   - Features:
+     - Supports Markdown content conversion
+     - Optional wiki space integration
+     - Automatic folder placement
 
 ## Error Messages
 

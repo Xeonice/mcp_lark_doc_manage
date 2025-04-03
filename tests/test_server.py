@@ -1,8 +1,19 @@
 import pytest
+import sys
 import os
 import json
 from unittest.mock import patch, MagicMock
-from mcp_server_my_lark_doc.server import (
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
+
+# 添加项目根目录到 Python 路径
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# 根据项目实际结构修改导入
+# 如果项目结构是 src/mcp_lark_doc_manage
+from src.mcp_lark_doc_manage.server import (
     get_lark_doc_content,
     search_wiki,
     list_folder_content,
@@ -10,6 +21,11 @@ from mcp_server_my_lark_doc.server import (
     _check_token_expired,
     larkClient
 )
+
+# 或者，如果项目结构是根目录下的 mcp_server_my_lark_doc
+# from mcp_server_my_lark_doc.server import (
+#    # 这里是您需要导入的内容
+# )
 
 # Mock response for successful API calls
 MOCK_SUCCESS_RESPONSE = MagicMock(
@@ -60,18 +76,16 @@ def mock_env_vars():
 @pytest.fixture
 def mock_lark_client():
     """Fixture to mock Lark client"""
-    with patch("mcp_server_my_lark_doc.server.larkClient") as mock_client:
+    with patch("src.mcp_lark_doc_manage.server.larkClient") as mock_client:
         mock_client.request.return_value = MOCK_SUCCESS_RESPONSE
         yield mock_client
 
 @pytest.mark.asyncio
 async def test_list_folder_content_success(mock_env_vars, mock_lark_client):
     """Test successful folder content listing"""
-    # Mock folder token
-    with patch("mcp_server_my_lark_doc.server.FOLDER_TOKEN", "test_folder_token"):
-        # Mock user access token
-        with patch("mcp_server_my_lark_doc.server.USER_ACCESS_TOKEN", "test_token"):
-            with patch("mcp_server_my_lark_doc.server._check_token_expired", return_value=False):
+    with patch("src.mcp_lark_doc_manage.server.FOLDER_TOKEN", "test_folder_token"):
+        with patch("src.mcp_lark_doc_manage.server.USER_ACCESS_TOKEN", "test_token"):
+            with patch("src.mcp_lark_doc_manage.server._check_token_expired", return_value=False):
                 result = await list_folder_content()
                 
                 # Parse result
@@ -84,30 +98,27 @@ async def test_list_folder_content_success(mock_env_vars, mock_lark_client):
 @pytest.mark.asyncio
 async def test_list_folder_content_failure(mock_env_vars, mock_lark_client):
     """Test folder content listing failure"""
-    # Mock folder token
-    with patch("mcp_server_my_lark_doc.server.FOLDER_TOKEN", "test_folder_token"):
+    with patch("src.mcp_lark_doc_manage.server.FOLDER_TOKEN", "test_folder_token"):
         mock_lark_client.request.return_value = MOCK_FAIL_RESPONSE
         
-        with patch("mcp_server_my_lark_doc.server.USER_ACCESS_TOKEN", "test_token"):
-            with patch("mcp_server_my_lark_doc.server._check_token_expired", return_value=False):
+        with patch("src.mcp_lark_doc_manage.server.USER_ACCESS_TOKEN", "test_token"):
+            with patch("src.mcp_lark_doc_manage.server._check_token_expired", return_value=False):
                 result = await list_folder_content()
                 assert "Failed to list files" in result
 
 @pytest.mark.asyncio
 async def test_get_folder_token():
     """Test get_folder_token function"""
-    # Mock environment variable
     with patch.dict(os.environ, {"FOLDER_TOKEN": "test_folder_token"}):
-        # Mock global variable
-        with patch("mcp_server_my_lark_doc.server.FOLDER_TOKEN", "test_folder_token"):
+        with patch("src.mcp_lark_doc_manage.server.FOLDER_TOKEN", "test_folder_token"):
             token = await get_folder_token()
             assert token == "test_folder_token"
 
 @pytest.mark.asyncio
 async def test_check_token_expired():
     """Test token expiration check"""
-    with patch("mcp_server_my_lark_doc.server.TOKEN_EXPIRES_AT", None):
-        with patch("mcp_server_my_lark_doc.server.USER_ACCESS_TOKEN", None):
+    with patch("src.mcp_lark_doc_manage.server.TOKEN_EXPIRES_AT", None):
+        with patch("src.mcp_lark_doc_manage.server.USER_ACCESS_TOKEN", None):
             is_expired = await _check_token_expired()
             assert is_expired == True
 
@@ -120,8 +131,8 @@ async def test_get_lark_doc_content(mock_lark_client):
     )
     mock_lark_client.docx.v1.document.raw_content.return_value = mock_response
     
-    with patch("mcp_server_my_lark_doc.server.USER_ACCESS_TOKEN", "test_token"):
-        with patch("mcp_server_my_lark_doc.server._check_token_expired", return_value=False):
+    with patch("src.mcp_lark_doc_manage.server.USER_ACCESS_TOKEN", "test_token"):
+        with patch("src.mcp_lark_doc_manage.server._check_token_expired", return_value=False):
             result = await get_lark_doc_content("https://example.feishu.cn/docx/test123")
             assert result == "Test content"
 
@@ -147,8 +158,8 @@ async def test_search_wiki(mock_lark_client):
     )
     mock_lark_client.request.return_value = mock_response
     
-    with patch("mcp_server_my_lark_doc.server.USER_ACCESS_TOKEN", "test_token"):
-        with patch("mcp_server_my_lark_doc.server._check_token_expired", return_value=False):
+    with patch("src.mcp_lark_doc_manage.server.USER_ACCESS_TOKEN", "test_token"):
+        with patch("src.mcp_lark_doc_manage.server._check_token_expired", return_value=False):
             result = await search_wiki("test")
             result_data = json.loads(result)
             assert isinstance(result_data, list)

@@ -1,0 +1,162 @@
+{
+  "children_id": [
+    "1",
+    "2",
+    "3",
+    "4"
+  ],
+  "descendants": [
+    {
+      "block_type": 3,
+      "block_id": "1",
+      "heading1": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "引用块测试",
+              "text_element_style": {
+                "bold": false,
+                "inline_code": false,
+                "italic": false,
+                "strikethrough": false,
+                "underline": false
+              }
+            }
+          }
+        ],
+        "style": {
+          "align": 1,
+          "folded": false
+        }
+      }
+    },
+    {
+      "block_type": 2,
+      "block_id": "2",
+      "text": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "",
+              "text_element_style": {
+                "bold": false,
+                "inline_code": false,
+                "italic": false,
+                "strikethrough": false,
+                "underline": false
+              }
+            }
+          }
+        ],
+        "style": {
+          "align": 1,
+          "folded": false
+        }
+      }
+    },
+    {
+      "block_type": 4,
+      "block_id": "3",
+      "heading2": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "单层引用",
+              "text_element_style": {
+                "bold": false,
+                "inline_code": false,
+                "italic": false,
+                "strikethrough": false,
+                "underline": false
+              }
+            }
+          }
+        ],
+        "style": {
+          "align": 1,
+          "folded": false
+        }
+      }
+    },
+    {
+      "block_type": 34,
+      "block_id": "4",
+      "children": [
+        "5"
+      ],
+      "quote_container": {}
+    },
+    {
+      "block_type": 2,
+      "block_id": "5",
+      "text": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "这是一个单层引用块",
+              "text_element_style": {
+                "bold": false,
+                "inline_code": false,
+                "italic": false,
+                "strikethrough": false,
+                "underline": false
+              }
+            }
+          },
+          {
+            "text_run": {
+              "content": "\n",
+              "text_element_style": {
+                "bold": false,
+                "inline_code": false,
+                "italic": false,
+                "strikethrough": false,
+                "underline": false
+              }
+            }
+          },
+          {
+            "text_run": {
+              "content": "可以包含多行内容",
+              "text_element_style": {
+                "bold": false,
+                "inline_code": false,
+                "italic": false,
+                "strikethrough": false,
+                "underline": false
+              }
+            }
+          },
+          {
+            "text_run": {
+              "content": "\n",
+              "text_element_style": {
+                "bold": false,
+                "inline_code": false,
+                "italic": false,
+                "strikethrough": false,
+                "underline": false
+              }
+            }
+          },
+          {
+            "text_run": {
+              "content": "每行都以 > 开头",
+              "text_element_style": {
+                "bold": false,
+                "inline_code": false,
+                "italic": false,
+                "strikethrough": false,
+                "underline": false
+              }
+            }
+          }
+        ],
+        "style": {
+          "align": 1,
+          "folded": false
+        }
+      }
+    }
+  ]
+}

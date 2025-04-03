@@ -158,6 +158,21 @@ export OAUTH_PORT="9997"                   # OAuth 回调服务器端口（默�
      - edit_time：最后编辑时间
      - owner_id：所有者 ID
 
+4. create_doc（创建文档）
+   - 用途：创建新的飞书文档并添加内容
+   - 参数：
+     - title (string) - 文档标题
+     - content (string, 可选) - Markdown 格式的文档内容
+     - target_space_id (string, 可选) - 目标知识库空间 ID
+   - 返回：包含以下字段的 JSON 字符串：
+     - document_id：创建的文档 ID
+     - title：文档标题
+     - url：文档链接
+   - 特性：
+     - 支持 Markdown 内容转换
+     - 可选的知识库空间集成
+     - 自动文件夹放置
+
 ## 错误信息
 
 常见错误信息及解决方案：
