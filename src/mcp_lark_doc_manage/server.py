@@ -188,13 +188,13 @@ async def search_wiki(query: str, page_size: int = 10) -> str:
     
 
 
-# 添加一个检查 token 是否过期的函数
+# Add a function to check if token has expired
 async def _check_token_expired() -> bool:
     """Check if the current token has expired"""
     async with token_lock:
         if not TOKEN_EXPIRES_AT or not USER_ACCESS_TOKEN:
             return True
-        # 提前 60 秒认为 token 过期，以避免边界情况
+        # Consider token expired 60 seconds early to avoid edge cases
         return time.time() + 60 >= TOKEN_EXPIRES_AT
 
 async def _handle_oauth_callback(webReq: web.Request) -> web.Response:
@@ -221,10 +221,9 @@ async def _handle_oauth_callback(webReq: web.Request) -> web.Response:
         }) \
         .build()
             
-    # 使用 None 作为 option 参数调用 request 方法
-    # 创建一个空的 RequestOption 对象来替代 None
+    # Use an empty RequestOption object instead of None for the request method
+    # Create an empty RequestOption object to replace None
     option = lark.RequestOption.builder().build()
-    
     if not larkClient:
         return web.Response(text="Lark client not initialized", status=500)
 
