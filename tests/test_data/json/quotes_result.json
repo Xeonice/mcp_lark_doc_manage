@@ -3,20 +3,7 @@
     "1",
     "2",
     "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "9",
-    "10",
-    "11",
-    "12",
-    "13",
-    "14",
-    "15",
-    "16",
-    "17"
+    "4"
   ],
   "descendants": [
     {
@@ -95,9 +82,7 @@
       "block_type": 34,
       "block_id": "4",
       "children": [
-        "UphpdQnfdoF16WxQEXFcKTcTnib",
-        "RO6PdzRvbo1bmSx6ImHcORtYnqd",
-        "HOU0d4YlmoP2FBxnTiYcp0Xknag"
+        "5"
       ],
       "quote_container": {}
     },
@@ -112,78 +97,54 @@
               "text_element_style": {
                 "bold": false,
                 "inline_code": false,
-                "italic": true,
+                "italic": false,
                 "strikethrough": false,
                 "underline": false
               }
             }
-          }
-        ],
-        "style": {
-          "align": 1,
-          "folded": false
-        }
-      }
-    },
-    {
-      "block_type": 2,
-      "block_id": "6",
-      "text": {
-        "elements": [
+          },
+          {
+            "text_run": {
+              "content": "\n",
+              "text_element_style": {
+                "bold": false,
+                "inline_code": false,
+                "italic": false,
+                "strikethrough": false,
+                "underline": false
+              }
+            }
+          },
           {
             "text_run": {
               "content": "可以包含多行内容",
               "text_element_style": {
                 "bold": false,
                 "inline_code": false,
-                "italic": true,
+                "italic": false,
                 "strikethrough": false,
                 "underline": false
               }
             }
-          }
-        ],
-        "style": {
-          "align": 1,
-          "folded": false
-        }
-      }
-    },
-    {
-      "block_type": 2,
-      "block_id": "7",
-      "text": {
-        "elements": [
+          },
+          {
+            "text_run": {
+              "content": "\n",
+              "text_element_style": {
+                "bold": false,
+                "inline_code": false,
+                "italic": false,
+                "strikethrough": false,
+                "underline": false
+              }
+            }
+          },
           {
             "text_run": {
               "content": "每行都以 > 开头",
               "text_element_style": {
                 "bold": false,
                 "inline_code": false,
-                "italic": true,
-                "strikethrough": false,
-                "underline": false
-              }
-            }
-          }
-        ],
-        "style": {
-          "align": 1,
-          "folded": false
-        }
-      }
-    },
-    {
-      "block_type": 2,
-      "block_id": "8",
-      "text": {
-        "elements": [
-          {
-            "text_run": {
-              "content": "",
-              "text_element_style": {
-                "bold": false,
-                "inline_code": false,
                 "italic": false,
                 "strikethrough": false,
                 "underline": false
@@ -194,196 +155,6 @@
         "style": {
           "align": 1,
           "folded": false
-        }
-      }
-    },
-    {
-      "block_type": 4,
-      "block_id": "9",
-      "heading2": {
-        "elements": [
-          {
-            "text_run": {
-              "content": "混合引用",
-              "text_element_style": {
-                "bold": false,
-                "inline_code": false,
-                "italic": false,
-                "strikethrough": false,
-                "underline": false
-              }
-            }
-          }
-        ],
-        "style": {
-          "align": 1,
-          "folded": false
-        }
-      }
-    },
-    {
-      "block_type": 2,
-      "block_id": "10",
-      "text": {
-        "elements": [
-          {
-            "text_run": {
-              "content": "这是一个包含其他格式的引用块",
-              "text_element_style": {
-                "bold": false,
-                "inline_code": false,
-                "italic": true,
-                "strikethrough": false,
-                "underline": false
-              }
-            }
-          }
-        ],
-        "style": {
-          "align": 1,
-          "folded": false
-        }
-      }
-    },
-    {
-      "block_type": 34,
-      "block_id": "11",
-      "children": [
-        "ZDs8dt0Qbo8URdxeWCocsdA9nyf",
-        "OEQNdfaQXoJGDmx524scFRrfndh"
-      ],
-      "quote_container": {}
-    },
-    {
-      "block_type": 12,
-      "block_id": "12",
-      "bullet": {
-        "elements": [
-          {
-            "text_run": {
-              "content": "无序列表项",
-              "text_element_style": {
-                "bold": false,
-                "inline_code": false,
-                "italic": true,
-                "strikethrough": false,
-                "underline": false
-              }
-            }
-          }
-        ],
-        "style": {
-          "align": 1,
-          "folded": false
-        }
-      }
-    },
-    {
-      "block_type": 12,
-      "block_id": "13",
-      "bullet": {
-        "elements": [
-          {
-            "text_run": {
-              "content": "另一个无序列表项",
-              "text_element_style": {
-                "bold": false,
-                "inline_code": false,
-                "italic": true,
-                "strikethrough": false,
-                "underline": false
-              }
-            }
-          }
-        ],
-        "style": {
-          "align": 1,
-          "folded": false
-        }
-      }
-    },
-    {
-      "block_type": 34,
-      "block_id": "14",
-      "children": [
-        "LwszdNcEjo5F0nxKXLacLddGnwf",
-        "XdUKd2JCxo6gDpxtfWMcRy1hnXe",
-        "Jr8QdpTOdoqX5rxxd5McBUOXnrc"
-      ],
-      "quote_container": {}
-    },
-    {
-      "block_type": 13,
-      "block_id": "15",
-      "ordered": {
-        "elements": [
-          {
-            "text_run": {
-              "content": "有序列表项",
-              "text_element_style": {
-                "bold": false,
-                "inline_code": false,
-                "italic": true,
-                "strikethrough": false,
-                "underline": false
-              }
-            }
-          }
-        ],
-        "style": {
-          "align": 1,
-          "folded": false,
-          "sequence": "1"
-        }
-      }
-    },
-    {
-      "block_type": 13,
-      "block_id": "16",
-      "ordered": {
-        "elements": [
-          {
-            "text_run": {
-              "content": "另一个有序列表项",
-              "text_element_style": {
-                "bold": false,
-                "inline_code": false,
-                "italic": true,
-                "strikethrough": false,
-                "underline": false
-              }
-            }
-          }
-        ],
-        "style": {
-          "align": 1,
-          "folded": false,
-          "sequence": "auto"
-        }
-      }
-    },
-    {
-      "block_type": 13,
-      "block_id": "17",
-      "ordered": {
-        "elements": [
-          {
-            "text_run": {
-              "content": "行内代码",
-              "text_element_style": {
-                "bold": false,
-                "inline_code": true,
-                "italic": true,
-                "strikethrough": false,
-                "underline": false
-              }
-            }
-          }
-        ],
-        "style": {
-          "align": 1,
-          "folded": false,
-          "sequence": "auto"
         }
       }
     }

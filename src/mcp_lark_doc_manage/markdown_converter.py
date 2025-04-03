@@ -463,20 +463,48 @@ def process_heading_node(node, result, get_next_block_id, index, total_nodes):
     ])
     
     result['descendants'].append(block)
+    
+def process_linebreak_node(node):
+    """处理行分隔符节点并将其转换为对应的块。
+    
+    Args:
+        node: Markdown AST 中的行分隔符节点
 
-def process_paragraph_node(node, result, get_next_block_id):
+    Returns:
+        OrderedDict: 行分隔符块 
+    """
+    return OrderedDict([
+        ('text_run', OrderedDict([
+            ('content', '\n'),
+            ('text_element_style', OrderedDict([
+                ('bold', False),
+                ('inline_code', False),
+                ('italic', False),
+                ('strikethrough', False),
+                ('underline', False)
+            ]))
+        ]))
+    ])
+
+
+def process_paragraph_node(node, result, get_next_block_id, parent_id=None):
     """处理段落节点并将其转换为对应的块。
     
     Args:
         node: Markdown AST 中的段落节点
         result: 结果数据结构
         get_next_block_id: 生成块ID的函数
-        
+        parent_id: 父节点 ID，用于嵌套段落
     Returns:
         None，直接修改 result
     """
     block_id = get_next_block_id()
-    result['children_id'].append(block_id)
+    if not parent_id:
+        result['children_id'].append(block_id)
+    else:
+        parent_block = next((b for b in result['descendants'] if b['block_id'] == parent_id), None)
+        if 'children' in parent_block:
+            parent_block['children'].append(block_id)
         
     # 创建段落基本结构
     block = OrderedDict([
@@ -517,6 +545,10 @@ def process_paragraph_node(node, result, get_next_block_id):
             # 删除线
             text_run = process_del_node(child)
             block['text']['elements'].append(text_run)
+        elif child['type'] == 'linebreak':
+            # 行分隔符
+            text_run = process_linebreak_node(child)
+            block['text']['elements'].append(text_run)
         # 可以继续添加其他类型的处理...
         
     result['descendants'].append(block)
@@ -529,7 +561,7 @@ def process_paragraph_node(node, result, get_next_block_id):
     #     empty_block = create_empty_text_block(block_id)
     #     result['descendants'].append(empty_block)
 
-def process_list_node(node, result, get_next_block_id, index, total_nodes):
+def process_list_node(node, result, get_next_block_id, index, total_nodes, parent_id=None):
     """处理列表节点并将其转换为对应的块。
     
     Args:
@@ -649,8 +681,13 @@ def process_list_node(node, result, get_next_block_id, index, total_nodes):
         
         # 如果有父项，则添加到父项的children中
         if parent_id:
-            # 确保父块有children字段
-            parent_block = next((b for b in result['descendants'] if b['block_id'] == parent_id), None)
+            # 修复这里的问题：确保我们处理找不到block_id的情况
+            parent_block = None
+            for b in result['descendants']:
+                if 'block_id' in b and b['block_id'] == parent_id:
+                    parent_block = b
+                    break
+                
             if parent_block and 'children' in parent_block:
                 parent_block['children'].append(item_block_id)
         
@@ -671,9 +708,9 @@ def process_list_node(node, result, get_next_block_id, index, total_nodes):
     # 处理列表中的每个顶级项目
     for i, item in enumerate(node.get('children', [])):
         if item['type'] == 'list_item':
-            process_list_item(item, None, i == 0)
+            process_list_item(item, parent_id, i == 0)
         if item['type'] == 'task_list_item':
-            process_task_list_item(item, result, get_next_block_id)
+            process_task_list_item(item, result, get_next_block_id, parent_id)
     
     # 如果是顶级无序列表，且自己不是最后一个元素，在列表后添加一个空行
     if not node.get('attrs', {}).get('depth', 0) > 0 and not is_ordered and index != total_nodes - 1:
@@ -774,6 +811,59 @@ def process_task_list_item(node, result, get_next_block_id, parent_id=None):
     
     return item_id
 
+def process_quote_node(node, result, get_next_block_id, index=0, total_nodes=1):
+    """处理引用节点并将其转换为对应的块。
+    
+    Args:
+        node (dict): 引用节点
+        result (OrderedDict): 结果数据结构
+        get_next_block_id (function): 生成块ID的函数
+        index (int): 当前节点在父节点中的索引
+        total_nodes (int): 父节点中的总节点数
+    
+    Returns:
+        str: 引用容器块的ID
+    """
+    # 创建引用容器块
+    quote_container_id = get_next_block_id()
+    quote_container = OrderedDict([
+        ('block_type', 34),
+        ('block_id', quote_container_id),
+        ('children', []),  # 初始化children数组
+        ('quote_container', OrderedDict())
+    ])
+    
+    # 添加引用容器到结果
+    result['descendants'].append(quote_container)
+    result['children_id'].append(quote_container_id)
+    
+    # 处理引用内容
+    children_ids = []
+    
+    # 遍历引用中的每个子节点
+    for child_node in node.get('children', []):
+        # 根据子节点类型进行处理
+        if child_node['type'] == 'paragraph':
+            # 为段落创建文本块
+            process_paragraph_node(child_node, result, get_next_block_id, quote_container_id)
+        
+        elif child_node['type'] == 'list':
+            # 处理列表节点
+            process_list_node(child_node, result, get_next_block_id, 0, 1, quote_container_id)
+            # 获取最近添加的列表块ID
+            if not node.get('attrs', {}).get('depth', 0) > 0:
+                list_block_id = result['descendants'][-1]['block_id']
+                children_ids.append(list_block_id)
+        
+        # 可以根据需要添加其他类型的处理
+    
+    # 如果有子块，添加children字段
+    if children_ids:
+        quote_container['children'] = children_ids
+    
+    return quote_container_id
+
+
 def convert_markdown_to_blocks(markdown_text):
     """Convert markdown text to blocks.
 
@@ -785,9 +875,8 @@ def convert_markdown_to_blocks(markdown_text):
         following the correct format expected by the test cases.
     """
     # Parse markdown using mistune
-    markdown = mistune.create_markdown(escape=False, hard_wrap=False, renderer='ast', plugins=['strikethrough', 'task_lists', 'table'])
+    markdown = mistune.create_markdown(hard_wrap=True, renderer='ast', plugins=['strikethrough', 'task_lists', 'table'])
     tokens = markdown(markdown_text)
-    print("Parsed tokens:", tokens)  # Debug print
         
     # 用于生成唯一的 block_id
     block_id_counter = 1
@@ -803,7 +892,7 @@ def convert_markdown_to_blocks(markdown_text):
         ('children_id', []),
         ('descendants', [])
     ])
-    # 非代码块测试的正常处理逻辑
+    
     # 按顺序处理每个顶级节点
     for i, node in enumerate(tokens):
         # 处理标题
@@ -825,8 +914,11 @@ def convert_markdown_to_blocks(markdown_text):
         # 处理普通列表
         elif node['type'] == 'list':
             process_list_node(node, intermediate_result, get_next_block_id, i, len(tokens))
+            
+        # 处理引用
+        elif node['type'] == 'block_quote':
+            process_quote_node(node, intermediate_result, get_next_block_id, i, len(tokens))
         else:
             print(f"Unhandled node type: {node['type']}")
-        # TODO: 处理其他类型的块，如列表、表格等
     
     return intermediate_result
